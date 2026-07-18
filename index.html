@@ -43,6 +43,45 @@
         .dark .custom-scrollbar::-webkit-scrollbar-track { background: #3E2723; }
         
         .dataTables_wrapper .dataTables_paginate .paginate_button { margin: 0 4px !important; padding: 0.2em 0.8em !important; }
+
+        /* ApexCharts Tooltip Customization (Black Background & White Text) */
+        .apexcharts-tooltip {
+            background: #1a1a1a !important; 
+            color: #ffffff !important; 
+            border: 1px solid #333333 !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+            border-radius: 8px !important;
+        }
+        .apexcharts-tooltip-title {
+            background: #000000 !important; 
+            border-bottom: 1px solid #333333 !important;
+            color: #ffffff !important;
+            font-family: 'Cairo', sans-serif !important;
+            font-weight: bold !important;
+            padding: 8px 12px !important;
+        }
+        .apexcharts-tooltip-text {
+            color: #ffffff !important;
+            font-family: 'Cairo', sans-serif !important;
+        }
+        .apexcharts-tooltip * {
+            color: #ffffff !important;
+        }
+        .apexcharts-tooltip-marker {
+            margin-right: 8px !important;
+            margin-left: 0 !important;
+        }
+        /* RTL support for tooltip items */
+        .apexcharts-tooltip-series-group {
+            display: flex !important;
+            flex-direction: row-reverse !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+        }
+        .apexcharts-tooltip-text-y-value {
+            margin-right: 4px !important;
+            margin-left: 0 !important;
+        }
     </style>
 </head>
 <body class="bg-amber-50 dark:bg-darkBg text-gray-800 dark:text-gray-200 antialiased">
@@ -482,7 +521,7 @@
             const textC = isDark() ? '#D2B48C' : '#5C4033';
             const brownPalette = ['#8B4513', '#A0522D', '#CD853F', '#D2B48C', '#F4A460'];
             
-            // 1. Color Donut Chart
+            // 1. Color Donut Chart (Based on Quantity)
             let colors = {}; filteredOpsData.forEach(r => colors[r.color] = (colors[r.color]||0) + r.qty);
             if(charts.color) charts.color.destroy();
             charts.color = new ApexCharts(document.querySelector("#color-chart"), {
@@ -494,7 +533,7 @@
                 legend: { position: 'bottom' }
             }); charts.color.render();
 
-            // 2. Payment Donut
+            // 2. Payment Donut (Based on Quantity)
             let pays = {}; filteredOpsData.forEach(r => pays[r.pay_method] = (pays[r.pay_method]||0) + r.qty);
             if(charts.pay) charts.pay.destroy();
             charts.pay = new ApexCharts(document.querySelector("#payment-chart"), {
@@ -505,7 +544,7 @@
                 legend: { position: 'bottom' }
             }); charts.pay.render();
 
-            // 3. Design Donut
+            // 3. Design Donut (Based on Quantity)
             let designs = {}; filteredOpsData.forEach(r => designs[r.design] = (designs[r.design]||0) + r.qty);
             if(charts.des) charts.des.destroy();
             charts.des = new ApexCharts(document.querySelector("#design-chart"), {
