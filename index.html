@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operations Analytics Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { primary: '#3b82f6', darkBg: '#0f172a', glass: 'rgba(30, 41, 59, 0.7)' } } }
+        }
+    </script>
+    <style>
+        /* Glassmorphism & Smooth Transitions */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+        }
+        /* Customizing DataTables for Dark Mode */
+        .dark .dataTables_wrapper .dataTables_length,
+        .dark .dataTables_wrapper .dataTables_filter,
+        .dark .dataTables_wrapper .dataTables_info,
+        .dark .dataTables_wrapper .dataTables_processing,
+        .dark .dataTables_wrapper .dataTables_paginate {
+            color: #cbd5e1;
+        }
+        .dark table.dataTable tbody tr {
+            background-color: transparent;
+        }
+        .dark table.dataTable.display tbody tr.odd>.sorting_1, 
+        .dark table.dataTable.order-column.stripe tbody tr.odd>.sorting_1 {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        .dark table.dataTable.display tbody tr.even>.sorting_1, 
+        .dark table.dataTable.order-column.stripe tbody tr.even>.sorting_1 {
+            background-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-darkBg text-gray-800 dark:text-gray-200 font-sans antialiased transition-colors duration-300">
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col transition-all duration-300">
+            <div class="p-6 flex items-center justify-between">
+                <h1 class="text-xl font-bold text-primary"><i class="fas fa-chart-pie mr-2"></i> OpsAnalytics</h1>
+            </div>
+            <nav class="flex-1 px-4 space-y-2 mt-4">
+                <button onclick="switchTab('dashboard1')" class="w-full flex items-center p-3 rounded-lg bg-primary/10 text-primary font-semibold transition-all">
+                    <i class="fas fa-chart-line w-6"></i> Operations
+                </button>
+                <button onclick="switchTab('dashboard2')" class="w-full flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
+                    <i class="fas fa-tools w-6"></i> Installations
+                </button>
+            </nav>
+            <div class="p-4 border-t dark:border-gray-700">
+                <button id="theme-toggle" class="w-full p-2 rounded bg-gray-200 dark:bg-gray-700 flex justify-center items-center">
+                    <i class="fas fa-moon dark:hidden"></i>
+                    <i class="fas fa-sun hidden dark:block text-yellow-400"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto p-8 relative">
+            <!-- Loading Skeleton -->
+            <div id="loader" class="absolute inset-0 z-50 bg-white/80 dark:bg-darkBg/80 flex flex-col items-center justify-center backdrop-blur-sm">
+                <div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <p class="mt-4 text-lg font-medium animate-pulse">Loading Data from Google Sheets...</p>
+            </div>
+
+            <!-- Header & Filters -->
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold" id="dashboard-title">Operations Overview</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time data synced from Google Sheets</p>
+                </div>
+                <div class="flex gap-3">
+                    <button class="px-4 py-2 bg-white dark:bg-gray-800 shadow rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary transition-all">
+                        <i class="fas fa-download mr-2"></i> Export
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard 1 Content -->
+            <div id="dashboard1" class="space-y-6 block">
+                <!-- KPIs Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="kpi-container-1">
+                    <!-- Cards will be injected via JS -->
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h3 class="font-semibold mb-4">Revenue Trend</h3>
+                        <div id="revenue-chart"></div>
+                    </div>
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h3 class="font-semibold mb-4">Orders by City</h3>
+                        <div id="city-chart"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h3 class="font-semibold mb-4">Design Distribution</h3>
+                        <div id="design-chart"></div>
+                    </div>
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h3 class="font-semibold mb-4">Sorting Status</h3>
+                        <div id="sorting-chart"></div>
+                    </div>
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <h3 class="font-semibold mb-4">Payment Methods</h3>
+                        <div id="payment-chart"></div>
+                    </div>
+                </div>
+                
+                <!-- Data Table -->
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mt-6 overflow-hidden">
+                    <h3 class="font-semibold mb-4">Recent Orders (Interactive)</h3>
+                    <div class="overflow-x-auto">
+                        <table id="orders-table" class="display w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>City</th>
+                                    <th>Design</th>
+                                    <th>Color</th>
+                                    <th>Price</th>
+                                    <th>Payment</th>
+                                    <th>Sorted</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard 2 Content (Hidden by default) -->
+            <div id="dashboard2" class="space-y-6 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="kpi-container-2">
+                    <!-- KPI Cards for Installers -->
+                </div>
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                    <h3 class="font-semibold mb-4">Top 10 Installers Leaderboard 🏆</h3>
+                    <div id="installer-chart"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.4.4/luxon.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    
+    <!-- App Logic -->
+    <script>
+        // --- CONFIGURATION ---
+        const CSV_URL_1 = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTZjOt8YrMh-rJAq2dAPg12X8sEs3pTObkIuQK8x7fhrYzG9NtqcnMrCSSm1UXooT6p5Ur8HqGnAvaJ/pub?gid=0&single=true&output=csv';
+        const CSV_URL_2 = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5-01SOGOj7njZilfELfZOVzzMvwDqWn51zLDsHQ0stIl1YTiSu7VAk_OZgGoyowbD-Fc7cs_zVnlD/pub?gid=0&single=true&output=csv';
+
+        let opsData = [];
+        let installData = [];
+
+        // --- THEME TOGGLE ---
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            // Re-render charts to update theme colors
+            renderCharts(); 
+        });
+
+        const isDark = () => document.documentElement.classList.contains('dark');
+
+        // --- TAB SWITCHING ---
+        window.switchTab = function(tabId) {
+            document.getElementById('dashboard1').classList.add('hidden');
+            document.getElementById('dashboard2').classList.add('hidden');
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('dashboard-title').innerText = tabId === 'dashboard1' ? 'Operations Overview' : 'Installation Performance';
+            
+            // Highlight sidebar
+            const buttons = document.querySelectorAll('aside nav button');
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-primary/10', 'text-primary', 'font-semibold');
+                btn.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            });
+            event.currentTarget.classList.add('bg-primary/10', 'text-primary', 'font-semibold');
+            event.currentTarget.classList.remove('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            
+            // Render charts for specific tab if not rendered yet
+            if(tabId === 'dashboard2' && installData.length > 0) renderDashboard2();
+        }
+
+        // --- DATA FETCHING (PapaParse) ---
+        async function init() {
+            try {
+                // Fetch Dashboard 1 Data
+                Papa.parse(CSV_URL_1, {
+                    download: true,
+                    header: true, 
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        opsData = processOpsData(results.data);
+                        renderDashboard1();
+                        checkBothLoaded();
+                    }
+                });
+
+                // Fetch Dashboard 2 Data
+                Papa.parse(CSV_URL_2, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        installData = results.data;
+                        checkBothLoaded();
+                    }
+                });
+            } catch (error) {
+                console.error("Error loading data:", error);
+            }
+        }
+
+        let loadedCount = 0;
+        function checkBothLoaded() {
+            loadedCount++;
+            if (loadedCount === 2) {
+                document.getElementById('loader').style.display = 'none';
+            }
+        }
+
+        // --- DATA PROCESSING ---
+        function processOpsData(data) {
+            return data.map(row => ({
+                order_number: row['order_number'] || row['Order Number'] || 'N/A',
+                city: row['city'] || 'Unknown',
+                design: row['design'] || 'Unknown',
+                color: row['type'] || row['Color'] || 'Unknown',
+                price: parseFloat(row['n_order']) || 0,
+                qty: parseInt(row['count']) || parseInt(row['amount']) || 1,
+                pay_method: (row['pay_method'] && row['pay_method'].includes('الاستلام')) ? 'Cash On Delivery' : 'Paid',
+                is_sorted: row['dis'] === 'TRUE' || row['dis'] === true || row['dis'] === '✓',
+                is_delivered: row['helpers'] === 'TRUE' || row['helpers'] === true
+            }));
+        }
+
+        // --- COMPONENTS (KPI CARDS) ---
+        function createKPICard(title, value, icon, colorClass) {
+            return `
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">${title}</p>
+                        <h4 class="text-2xl font-bold">${value}</h4>
+                    </div>
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center ${colorClass} bg-opacity-20 text-xl">
+                        <i class="${icon}"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- DASHBOARD 1 RENDER ---
+        let charts = {}; 
+
+        function renderDashboard1() {
+            const totalOrders = opsData.length;
+            const totalRevenue = opsData.reduce((sum, row) => sum + (row.price || 0), 0);
+            const codOrders = opsData.filter(r => r.pay_method === 'Cash On Delivery').length;
+            const sortedOrders = opsData.filter(r => r.is_sorted).length;
+            const sortingRate = totalOrders > 0 ? ((sortedOrders / totalOrders) * 100).toFixed(1) : 0;
+
+            const kpiContainer = document.getElementById('kpi-container-1');
+            kpiContainer.innerHTML = `
+                ${createKPICard('Total Orders', totalOrders, 'fas fa-shopping-cart', 'bg-blue-500 text-blue-500')}
+                ${createKPICard('Total Revenue', '$' + totalRevenue.toLocaleString(), 'fas fa-dollar-sign', 'bg-green-500 text-green-500')}
+                ${createKPICard('COD Orders', codOrders, 'fas fa-truck', 'bg-orange-500 text-orange-500')}
+                ${createKPICard('Sorting Rate', sortingRate + '%', 'fas fa-check-circle', 'bg-purple-500 text-purple-500')}
+            `;
+
+            renderCharts();
+            renderTable();
+        }
+
+        function renderCharts() {
+            if (opsData.length === 0) return;
+            const textColor = isDark() ? '#cbd5e1' : '#334155';
+            
+            if(charts.revenue) charts.revenue.destroy();
+            const cityCounts = {};
+            opsData.forEach(r => { cityCounts[r.city] = (cityCounts[r.city] || 0) + 1; });
+            const cities = Object.keys(cityCounts).slice(0, 10); 
+
+            charts.revenue = new ApexCharts(document.querySelector("#revenue-chart"), {
+                series: [{ name: 'Orders', data: cities.map(c => cityCounts[c]) }],
+                chart: { type: 'area', height: 300, toolbar: { show: false }, foreColor: textColor },
+                colors: ['#3b82f6'],
+                xaxis: { categories: cities },
+                fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.2 }}
+            });
+            charts.revenue.render();
+
+            if(charts.design) charts.design.destroy();
+            const designCounts = {};
+            opsData.forEach(r => { designCounts[r.design] = (designCounts[r.design] || 0) + 1; });
+            
+            charts.design = new ApexCharts(document.querySelector("#design-chart"), {
+                series: Object.values(designCounts),
+                chart: { type: 'donut', height: 250, foreColor: textColor },
+                labels: Object.keys(designCounts),
+                colors: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444'],
+                dataLabels: { enabled: false }
+            });
+            charts.design.render();
+
+            if(charts.sorting) charts.sorting.destroy();
+            const sortingRate = opsData.length > 0 ? (opsData.filter(r => r.is_sorted).length / opsData.length) * 100 : 0;
+            
+            charts.sorting = new ApexCharts(document.querySelector("#sorting-chart"), {
+                series: [sortingRate.toFixed(1)],
+                chart: { type: 'radialBar', height: 250 },
+                plotOptions: { radialBar: { hollow: { size: '60%' }, dataLabels: { value: { color: textColor } } } },
+                labels: ['Sorted %'],
+                colors: ['#8b5cf6']
+            });
+            charts.sorting.render();
+        }
+
+        function renderTable() {
+            if ($.fn.DataTable.isDataTable('#orders-table')) {
+                $('#orders-table').DataTable().destroy();
+            }
+            
+            $('#orders-table').DataTable({
+                data: opsData,
+                columns: [
+                    { data: 'order_number' },
+                    { data: 'city' },
+                    { data: 'design' },
+                    { data: 'color' },
+                    { data: 'price' },
+                    { data: 'pay_method' },
+                    { data: 'is_sorted', render: data => data ? '<span class="text-green-500 font-bold">✓</span>' : '<span class="text-red-500 font-bold">✗</span>' }
+                ],
+                pageLength: 5,
+                lengthMenu: [5, 10, 25, 50],
+                dom: '<"flex justify-between items-center mb-4"lf>rt<"flex justify-between items-center mt-4"ip>',
+            });
+        }
+
+        function renderDashboard2() {
+            const totalInstallers = [...new Set(installData.map(r => r['name_of_installer']))].filter(n => n && n !== 'Unknown').length;
+            const totalAssigned = installData.length;
+            const installed = installData.filter(r => r['done'] === 'TRUE' || r['done'] === '✓').length;
+            const rate = totalAssigned > 0 ? ((installed / totalAssigned) * 100).toFixed(1) : 0;
+
+            document.getElementById('kpi-container-2').innerHTML = `
+                ${createKPICard('Total Installers', totalInstallers, 'fas fa-users', 'bg-blue-500 text-blue-500')}
+                ${createKPICard('Assigned Orders', totalAssigned, 'fas fa-clipboard-list', 'bg-yellow-500 text-yellow-500')}
+                ${createKPICard('Completion Rate', rate + '%', 'fas fa-trophy', 'bg-green-500 text-green-500')}
+            `;
+
+            const installerCounts = {};
+            installData.forEach(r => {
+                let name = r['name_of_installer'] || 'Unknown';
+                if (name !== 'Unknown' && name !== '') {
+                    installerCounts[name] = (installerCounts[name] || 0) + 1;
+                }
+            });
+            
+            const sortedInstallers = Object.entries(installerCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            
+            if(charts.installers) charts.installers.destroy();
+            charts.installers = new ApexCharts(document.querySelector("#installer-chart"), {
+                series: [{ name: 'Installations', data: sortedInstallers.map(i => i[1]) }],
+                chart: { type: 'bar', height: 350, foreColor: isDark() ? '#cbd5e1' : '#334155' },
+                plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+                dataLabels: { enabled: true },
+                xaxis: { categories: sortedInstallers.map(i => i[0]) },
+                colors: ['#3b82f6']
+            });
+            charts.installers.render();
+        }
+
+        init();
+    </script>
+</body>
+</html>
