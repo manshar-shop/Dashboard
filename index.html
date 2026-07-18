@@ -1,107 +1,130 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="ar" dir="rtl" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Operations Analytics Dashboard</title>
+    <title>لوحة تحكم العمليات - هوية بيتك</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     
     <script>
         tailwind.config = {
             darkMode: 'class',
-            theme: { extend: { colors: { primary: '#3b82f6', darkBg: '#0f172a', glass: 'rgba(30, 41, 59, 0.7)' } } }
+            theme: { 
+                extend: { 
+                    colors: { 
+                        primary: '#8B4513', // SaddleBrown
+                        secondary: '#D2B48C', // Tan
+                        darkBg: '#2E1D16', // Dark Brown Background
+                        glass: 'rgba(46, 29, 22, 0.85)' 
+                    },
+                    fontFamily: {
+                        sans: ['Cairo', 'sans-serif'],
+                    }
+                } 
+            }
         }
     </script>
     <style>
-        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
-        .dark .glass-card { background: rgba(30, 41, 59, 0.8); }
-        .dark .dataTables_wrapper * { color: #cbd5e1 !important; }
+        body { font-family: 'Cairo', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .dark .glass-card { background: rgba(46, 29, 22, 0.8); border-color: #5C4033; }
+        .dark .dataTables_wrapper * { color: #e2e8f0 !important; }
         .dark table.dataTable tbody tr { background-color: transparent !important; }
-        select { background-color: transparent; }
-        .dark select { background-color: #1e293b; color: white; }
+        .dark table.dataTable.display tbody tr.odd>.sorting_1 { background-color: rgba(255,255,255,0.05) !important; }
+        select, input { background-color: transparent; }
+        .dark select, .dark input { background-color: #3E2723; color: white; border-color: #5C4033; }
+        
+        /* Custom Scrollbar for the table */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #8B4513; border-radius: 4px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-track { background: #3E2723; }
+        
+        /* Fix DataTables Pagination in RTL */
+        .dataTables_wrapper .dataTables_paginate .paginate_button { margin: 0 4px !important; padding: 0.2em 0.8em !important; }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-darkBg text-gray-800 dark:text-gray-200 font-sans antialiased">
+<body class="bg-amber-50 dark:bg-darkBg text-gray-800 dark:text-gray-200 antialiased">
 
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside class="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col z-20">
-            <div class="p-6">
-                <h1 class="text-xl font-bold text-primary"><i class="fas fa-chart-pie mr-2"></i> OpsAnalytics</h1>
+        <aside class="w-64 bg-white dark:bg-[#3E2723] shadow-lg flex flex-col z-20 border-l border-gray-200 dark:border-[#5C4033]">
+            <div class="p-6 text-center border-b border-gray-100 dark:border-[#5C4033]">
+                <h1 class="text-2xl font-bold text-primary"><i class="fas fa-home ms-2"></i> هوية بيتك</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">لوحة تحكم العمليات</p>
             </div>
-            <nav class="flex-1 px-4 space-y-2 mt-4">
+            <nav class="flex-1 px-4 space-y-2 mt-6">
                 <button onclick="switchTab('dashboard1')" class="w-full flex items-center p-3 rounded-lg bg-primary/10 text-primary font-semibold tab-btn" id="btn-dash1">
-                    <i class="fas fa-chart-line w-6"></i> Operations
+                    <i class="fas fa-chart-line w-6 me-2"></i> الإحصائيات العامة
                 </button>
-                <button onclick="switchTab('dashboard2')" class="w-full flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 tab-btn" id="btn-dash2">
-                    <i class="fas fa-tools w-6"></i> Installations
+                <button onclick="switchTab('dashboard2')" class="w-full flex items-center p-3 rounded-lg hover:bg-amber-100 dark:hover:bg-[#5C4033] tab-btn" id="btn-dash2">
+                    <i class="fas fa-tools w-6 me-2"></i> أداء المناديب
                 </button>
             </nav>
-            <div class="p-4 border-t dark:border-gray-700">
-                <button id="theme-toggle" class="w-full p-2 rounded bg-gray-200 dark:bg-gray-700 flex justify-center">
+            <div class="p-4 border-t dark:border-[#5C4033]">
+                <button id="theme-toggle" class="w-full p-2 rounded bg-amber-100 dark:bg-[#5C4033] text-primary dark:text-secondary flex justify-center hover:bg-amber-200 transition-colors">
                     <i class="fas fa-moon dark:hidden"></i>
-                    <i class="fas fa-sun hidden dark:block text-yellow-400"></i>
+                    <i class="fas fa-sun hidden dark:block"></i>
                 </button>
             </div>
         </aside>
 
         <!-- Main Content -->
         <main class="flex-1 overflow-y-auto p-8 relative">
-            <div id="loader" class="absolute inset-0 z-50 bg-white/80 dark:bg-darkBg/80 flex flex-col items-center justify-center backdrop-blur-sm">
+            <div id="loader" class="absolute inset-0 z-50 bg-amber-50/90 dark:bg-darkBg/90 flex flex-col items-center justify-center backdrop-blur-sm">
                 <div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                <p class="mt-4 text-lg">Loading Data...</p>
+                <p class="mt-4 text-lg font-semibold text-primary">جاري تحميل البيانات...</p>
             </div>
 
-            <header class="mb-6">
-                <h2 class="text-3xl font-bold" id="dashboard-title">Operations Overview</h2>
+            <header class="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 class="text-3xl font-bold text-primary dark:text-secondary" id="dashboard-title">نظرة عامة على العمليات</h2>
+                </div>
             </header>
 
             <!-- Dashboard 1 Content -->
             <div id="dashboard1" class="space-y-6 block">
                 
                 <!-- Slicers / Filters -->
-                <div class="glass-card p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-semibold"><i class="fas fa-filter text-primary mr-2"></i> Global Filters</h3>
-                        <button onclick="resetFilters()" class="text-sm text-red-500 hover:text-red-600"><i class="fas fa-undo mr-1"></i> Reset</button>
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold text-lg text-primary"><i class="fas fa-filter me-2"></i> فلاتر البحث المتقدم</h3>
+                        <button onclick="resetFilters()" class="text-sm px-3 py-1 bg-red-100 text-red-600 rounded-md hover:bg-red-200"><i class="fas fa-undo me-1"></i> إعادة ضبط</button>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
-                        <div>
-                            <label class="block text-gray-500 text-xs mb-1">City</label>
-                            <select id="f-city" class="w-full p-2 border rounded dark:border-gray-600" onchange="applyFilters()"><option value="all">All</option></select>
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 text-sm">
+                        <div class="col-span-2 md:col-span-1 lg:col-span-2">
+                            <label class="block text-gray-600 dark:text-gray-300 text-xs mb-1 font-bold">رقم الطلبية (عمود G)</label>
+                            <input type="text" id="f-order" placeholder="ابحث برقم الطلبية..." class="w-full p-2 border rounded-md focus:outline-none focus:border-primary" onkeyup="applyFilters()">
                         </div>
                         <div>
-                            <label class="block text-gray-500 text-xs mb-1">Design</label>
-                            <select id="f-design" class="w-full p-2 border rounded dark:border-gray-600" onchange="applyFilters()"><option value="all">All</option></select>
+                            <label class="block text-gray-600 dark:text-gray-300 text-xs mb-1 font-bold">المدينة</label>
+                            <select id="f-city" class="w-full p-2 border rounded-md focus:outline-none focus:border-primary" onchange="applyFilters()"><option value="all">الكل</option></select>
                         </div>
                         <div>
-                            <label class="block text-gray-500 text-xs mb-1">Color</label>
-                            <select id="f-color" class="w-full p-2 border rounded dark:border-gray-600" onchange="applyFilters()"><option value="all">All</option></select>
+                            <label class="block text-gray-600 dark:text-gray-300 text-xs mb-1 font-bold">التصميم</label>
+                            <select id="f-design" class="w-full p-2 border rounded-md focus:outline-none focus:border-primary" onchange="applyFilters()"><option value="all">الكل</option></select>
                         </div>
                         <div>
-                            <label class="block text-gray-500 text-xs mb-1">Payment</label>
-                            <select id="f-payment" class="w-full p-2 border rounded dark:border-gray-600" onchange="applyFilters()">
-                                <option value="all">All</option>
-                                <option value="Cash On Delivery">Cash On Delivery (نعم)</option>
-                                <option value="Paid">Paid (لا)</option>
+                            <label class="block text-gray-600 dark:text-gray-300 text-xs mb-1 font-bold">اللون</label>
+                            <select id="f-color" class="w-full p-2 border rounded-md focus:outline-none focus:border-primary" onchange="applyFilters()"><option value="all">الكل</option></select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-600 dark:text-gray-300 text-xs mb-1 font-bold">حالة الدفع</label>
+                            <select id="f-payment" class="w-full p-2 border rounded-md focus:outline-none focus:border-primary" onchange="applyFilters()">
+                                <option value="all">الكل</option>
+                                <option value="الدفع عند الاستلام">الدفع عند الاستلام</option>
+                                <option value="مدفوع مسبقاً">مدفوع مسبقاً</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-gray-500 text-xs mb-1">Sorted?</label>
-                            <select id="f-sorted" class="w-full p-2 border rounded dark:border-gray-600" onchange="applyFilters()">
-                                <option value="all">All</option>
-                                <option value="true">Yes (TRUE)</option>
-                                <option value="false">No (FALSE)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-gray-500 text-xs mb-1">Delivered?</label>
-                            <select id="f-delivered" class="w-full p-2 border rounded dark:border-gray-600" onchange="applyFilters()">
-                                <option value="all">All</option>
-                                <option value="true">Yes (TRUE)</option>
-                                <option value="false">No (FALSE)</option>
+                            <label class="block text-gray-600 dark:text-gray-300 text-xs mb-1 font-bold">الحالة</label>
+                            <select id="f-status" class="w-full p-2 border rounded-md focus:outline-none focus:border-primary" onchange="applyFilters()">
+                                <option value="all">الكل</option>
+                                <option value="sorted">تم الفرز</option>
+                                <option value="delivered">تم التسليم</option>
                             </select>
                         </div>
                     </div>
@@ -110,32 +133,67 @@
                 <!-- KPIs -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="kpi-container-1"></div>
 
-                <!-- Charts -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-semibold mb-4">Revenue by City</h3><div id="city-chart"></div>
+                <!-- Charts & Tables Row 1 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Revenue by City (Table instead of Chart) -->
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none flex flex-col h-[350px]">
+                        <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-map-marker-alt me-2"></i> الإيرادات حسب المدينة</h3>
+                        <div class="overflow-y-auto custom-scrollbar flex-1 pe-2">
+                            <table class="w-full text-sm text-right">
+                                <thead class="sticky top-0 bg-white dark:bg-[#3E2723] shadow-sm">
+                                    <tr class="text-gray-500 dark:text-gray-400">
+                                        <th class="py-2">المدينة</th>
+                                        <th class="py-2">الطلبات</th>
+                                        <th class="py-2">الإيرادات (ر.س)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="city-table-body" class="divide-y divide-gray-100 dark:divide-[#5C4033]">
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-semibold mb-4">Payment Methods</h3><div id="payment-chart"></div>
+
+                    <!-- Color Distribution -->
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none h-[350px]">
+                        <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-palette me-2"></i> توزيع الألوان</h3>
+                        <div id="color-chart" class="flex justify-center items-center h-full pb-8"></div>
+                    </div>
+
+                    <!-- Payment Methods -->
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none h-[350px]">
+                        <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-wallet me-2"></i> طرق الدفع</h3>
+                        <div id="payment-chart" class="flex justify-center items-center h-full pb-8"></div>
                     </div>
                 </div>
 
+                <!-- Charts Row 2 -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-semibold mb-4">Design & Color</h3><div id="design-chart"></div>
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none h-[350px]">
+                        <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-box-open me-2"></i> نسبة مبيعات التصاميم</h3>
+                        <div id="design-chart" class="flex justify-center items-center h-full pb-8"></div>
                     </div>
-                    <div class="glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-semibold mb-4">Sorting & Delivery Status</h3><div id="status-chart"></div>
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none h-[350px]">
+                        <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-tasks me-2"></i> معدل الفرز والتسليم</h3>
+                        <div id="status-chart" class="flex justify-center items-center h-full pb-8"></div>
                     </div>
                 </div>
                 
                 <!-- Table -->
-                <div class="glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <h3 class="font-semibold mb-4">Orders Data</h3>
-                    <div class="overflow-x-auto">
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none overflow-hidden">
+                    <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-table me-2"></i> سجل الطلبات التفصيلي</h3>
+                    <div class="overflow-x-auto custom-scrollbar pb-4">
                         <table id="orders-table" class="display w-full text-sm">
-                            <thead class="bg-gray-100 dark:bg-gray-700">
-                                <tr><th>Order #</th><th>City</th><th>Design</th><th>Color</th><th>Price</th><th>Payment</th><th>Sorted</th><th>Delivered</th></tr>
+                            <thead class="bg-amber-100/50 dark:bg-[#5C4033] text-primary dark:text-secondary">
+                                <tr>
+                                    <th>رقم الطلب</th>
+                                    <th>المدينة</th>
+                                    <th>التصميم</th>
+                                    <th>اللون</th>
+                                    <th>السعر (ر.س)</th>
+                                    <th>طريقة الدفع</th>
+                                    <th>تم الفرز</th>
+                                    <th>تم التسليم</th>
+                                </tr>
                             </thead>
                             <tbody></tbody>
                         </table>
@@ -148,28 +206,28 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="kpi-container-2"></div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-semibold mb-4">Installer Performance (Installed vs Pending)</h3>
+                    <div class="lg:col-span-2 glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none">
+                        <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-chart-bar me-2"></i> أداء المناديب (مكتمل مقابل قيد الانتظار)</h3>
                         <div id="installer-stacked-chart"></div>
                     </div>
-                    <div class="glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <h3 class="font-semibold mb-4">Top Performers</h3>
+                    <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none">
+                        <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-medal me-2"></i> أفضل المناديب أداءً</h3>
                         <div id="installer-donut-chart"></div>
                     </div>
                 </div>
 
                 <!-- Installers Detailed Table -->
-                <div class="glass-card p-5 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <h3 class="font-semibold mb-4">Installers Detailed Report</h3>
-                    <div class="overflow-x-auto">
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none overflow-hidden">
+                    <h3 class="font-bold text-lg mb-4 text-primary"><i class="fas fa-users-cog me-2"></i> تقرير المناديب التفصيلي</h3>
+                    <div class="overflow-x-auto custom-scrollbar pb-4">
                         <table id="installers-table" class="display w-full text-sm">
-                            <thead class="bg-gray-100 dark:bg-gray-700">
+                            <thead class="bg-amber-100/50 dark:bg-[#5C4033] text-primary dark:text-secondary">
                                 <tr>
-                                    <th>Installer Name</th>
-                                    <th>Total Assigned</th>
-                                    <th>Installed (ركب)</th>
-                                    <th>Pending (لسه)</th>
-                                    <th>Completion %</th>
+                                    <th>اسم المندوب</th>
+                                    <th>إجمالي المسند</th>
+                                    <th>تم التركيب</th>
+                                    <th>قيد الانتظار</th>
+                                    <th>نسبة الإنجاز</th>
                                 </tr>
                             </thead>
                             <tbody id="installers-table-body"></tbody>
@@ -194,10 +252,11 @@
         let installData = [];
         let charts = {};
 
-        // Theme
+        // Theme Setup
         document.getElementById('theme-toggle').addEventListener('click', () => {
             document.documentElement.classList.toggle('dark');
-            renderDash1Charts(); if(!document.getElementById('dashboard2').classList.contains('hidden')) renderDash2Charts();
+            renderDash1Charts(); 
+            if(!document.getElementById('dashboard2').classList.contains('hidden')) renderDash2Charts();
         });
         const isDark = () => document.documentElement.classList.contains('dark');
 
@@ -206,18 +265,18 @@
             document.getElementById('dashboard1').classList.add('hidden');
             document.getElementById('dashboard2').classList.add('hidden');
             document.getElementById(tabId).classList.remove('hidden');
-            document.getElementById('dashboard-title').innerText = tabId === 'dashboard1' ? 'Operations Overview' : 'Installation Performance';
+            document.getElementById('dashboard-title').innerText = tabId === 'dashboard1' ? 'نظرة عامة على العمليات' : 'لوحة أداء المناديب';
             
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.className = "w-full flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 tab-btn transition-all";
+                btn.className = "w-full flex items-center p-3 rounded-lg hover:bg-amber-100 dark:hover:bg-[#5C4033] tab-btn transition-all text-gray-700 dark:text-gray-300";
             });
-            event.currentTarget.className = "w-full flex items-center p-3 rounded-lg bg-primary/10 text-primary font-semibold tab-btn transition-all";
+            event.currentTarget.className = "w-full flex items-center p-3 rounded-lg bg-primary/10 text-primary font-bold tab-btn transition-all";
             
             if(tabId === 'dashboard2') renderDashboard2();
             if(tabId === 'dashboard1') renderDash1Charts();
         }
 
-        // Init
+        // Initialize Data
         async function init() {
             let loaded = 0;
             const checkDone = () => { if(++loaded === 2) { document.getElementById('loader').style.display = 'none'; }};
@@ -225,18 +284,29 @@
             Papa.parse(CSV_1, { download: true, header: true, skipEmptyLines: true, complete: res => {
                 rawOpsData = res.data.map(row => {
                     const payVal = (row['pay_method'] || '').trim();
+                    const designVal = (row['design'] || '').trim();
+                    const qty = parseInt(row['count']) || 1;
+                    
+                    // Specific Pricing Logic in SAR
+                    let unitPrice = 0;
+                    if (designVal === 'design-1') unitPrice = 299;
+                    else if (designVal === 'design-2') unitPrice = 249;
+                    else unitPrice = parseFloat(row['n_order']) || 0; // Fallback if needed
+
+                    const isSorted = (row['dis'] === 'TRUE' || row['dis'] === '✓');
+                    const isDelivered = (row['helpers'] === 'TRUE' || row['helpers'] === '✓');
+
                     return {
-                        order: row['order_number'] || 'N/A',
-                        city: row['city'] || 'Unknown',
-                        design: row['design'] || 'Unknown',
-                        color: row['type'] || 'Unknown',
-                        price: parseFloat(row['n_order']) || 0,
-                        qty: parseInt(row['count']) || 1,
-                        // Correction: 'نعم' means COD, otherwise Paid
-                        pay_method: (payVal === 'نعم') ? 'Cash On Delivery' : 'Paid',
-                        // Correction: TRUE/FALSE logic for checkmarks
-                        is_sorted: row['dis'] === 'TRUE',
-                        is_delivered: row['helpers'] === 'TRUE'
+                        n_order: row['n_order'] || '', // Used for searching via column G
+                        order: row['order_number'] || 'غير متوفر',
+                        city: row['city'] || 'غير محدد',
+                        design: designVal || 'غير محدد',
+                        color: row['type'] || 'غير محدد',
+                        price: unitPrice * qty,
+                        qty: qty,
+                        pay_method: (payVal === 'نعم' || payVal.includes('استلام')) ? 'الدفع عند الاستلام' : 'مدفوع مسبقاً',
+                        is_sorted: isSorted,
+                        is_delivered: isDelivered
                     };
                 });
                 filteredOpsData = [...rawOpsData];
@@ -256,7 +326,7 @@
             const addOpts = (id, key) => {
                 const unique = [...new Set(rawOpsData.map(r => r[key]))].sort();
                 const sel = document.getElementById(id);
-                unique.forEach(val => { if(val && val!=='Unknown') sel.innerHTML += `<option value="${val}">${val}</option>`; });
+                unique.forEach(val => { if(val && val!=='غير محدد') sel.innerHTML += `<option value="${val}">${val}</option>`; });
             };
             addOpts('f-city', 'city');
             addOpts('f-design', 'design');
@@ -264,26 +334,32 @@
         }
 
         window.applyFilters = function() {
+            const searchOrder = document.getElementById('f-order').value.trim().toLowerCase();
             const city = document.getElementById('f-city').value;
             const design = document.getElementById('f-design').value;
             const color = document.getElementById('f-color').value;
             const payment = document.getElementById('f-payment').value;
-            const sorted = document.getElementById('f-sorted').value;
-            const delivered = document.getElementById('f-delivered').value;
+            const status = document.getElementById('f-status').value;
 
             filteredOpsData = rawOpsData.filter(r => {
-                return (city === 'all' || r.city === city) &&
-                       (design === 'all' || r.design === design) &&
-                       (color === 'all' || r.color === color) &&
-                       (payment === 'all' || r.pay_method === payment) &&
-                       (sorted === 'all' || r.is_sorted.toString() === sorted) &&
-                       (delivered === 'all' || r.is_delivered.toString() === delivered);
+                const matchSearch = searchOrder === '' || r.n_order.toLowerCase().includes(searchOrder) || r.order.toLowerCase().includes(searchOrder);
+                const matchCity = city === 'all' || r.city === city;
+                const matchDesign = design === 'all' || r.design === design;
+                const matchColor = color === 'all' || r.color === color;
+                const matchPayment = payment === 'all' || r.pay_method === payment;
+                
+                let matchStatus = true;
+                if(status === 'sorted') matchStatus = r.is_sorted;
+                if(status === 'delivered') matchStatus = r.is_delivered;
+
+                return matchSearch && matchCity && matchDesign && matchColor && matchPayment && matchStatus;
             });
             renderDashboard1();
         }
 
         window.resetFilters = function() {
             document.querySelectorAll('select').forEach(s => s.value = 'all');
+            document.getElementById('f-order').value = '';
             filteredOpsData = [...rawOpsData];
             renderDashboard1();
         }
@@ -296,69 +372,132 @@
             const deliv = filteredOpsData.filter(r => r.is_delivered).length;
 
             document.getElementById('kpi-container-1').innerHTML = `
-                <div class="glass-card p-5 rounded-xl border flex justify-between"><div><p class="text-sm text-gray-500">Orders</p><h4 class="text-2xl font-bold">${tOrders}</h4></div><i class="fas fa-box text-3xl text-blue-500/20"></i></div>
-                <div class="glass-card p-5 rounded-xl border flex justify-between"><div><p class="text-sm text-gray-500">Revenue</p><h4 class="text-2xl font-bold">${tRev.toFixed(0)}</h4></div><i class="fas fa-dollar-sign text-3xl text-green-500/20"></i></div>
-                <div class="glass-card p-5 rounded-xl border flex justify-between"><div><p class="text-sm text-gray-500">Sorted</p><h4 class="text-2xl font-bold">${sorted}</h4></div><i class="fas fa-layer-group text-3xl text-purple-500/20"></i></div>
-                <div class="glass-card p-5 rounded-xl border flex justify-between"><div><p class="text-sm text-gray-500">Delivered</p><h4 class="text-2xl font-bold">${deliv}</h4></div><i class="fas fa-truck text-3xl text-orange-500/20"></i></div>
+                <div class="glass-card p-5 rounded-xl flex items-center justify-between border-b-4 border-primary">
+                    <div><p class="text-sm text-gray-500 font-bold mb-1">إجمالي الطلبات</p><h4 class="text-3xl font-bold text-gray-800 dark:text-white">${tOrders}</h4></div>
+                    <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xl"><i class="fas fa-shopping-bag"></i></div>
+                </div>
+                <div class="glass-card p-5 rounded-xl flex items-center justify-between border-b-4 border-green-600">
+                    <div><p class="text-sm text-gray-500 font-bold mb-1">إجمالي الإيرادات (ر.س)</p><h4 class="text-3xl font-bold text-gray-800 dark:text-white">${tRev.toLocaleString()}</h4></div>
+                    <div class="w-12 h-12 rounded-full bg-green-600/20 flex items-center justify-center text-green-600 text-xl"><i class="fas fa-money-bill-wave"></i></div>
+                </div>
+                <div class="glass-card p-5 rounded-xl flex items-center justify-between border-b-4 border-blue-500">
+                    <div><p class="text-sm text-gray-500 font-bold mb-1">الطلبات المفرزة</p><h4 class="text-3xl font-bold text-gray-800 dark:text-white">${sorted}</h4></div>
+                    <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-xl"><i class="fas fa-layer-group"></i></div>
+                </div>
+                <div class="glass-card p-5 rounded-xl flex items-center justify-between border-b-4 border-orange-500">
+                    <div><p class="text-sm text-gray-500 font-bold mb-1">تم تسليمها للمندوب</p><h4 class="text-3xl font-bold text-gray-800 dark:text-white">${deliv}</h4></div>
+                    <div class="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-500 text-xl"><i class="fas fa-truck"></i></div>
+                </div>
             `;
+            
+            renderCityTable();
             renderDash1Charts();
             renderTable();
         }
 
+        function renderCityTable() {
+            let cityStats = {};
+            filteredOpsData.forEach(r => {
+                if(!cityStats[r.city]) cityStats[r.city] = { orders: 0, revenue: 0 };
+                cityStats[r.city].orders += 1;
+                cityStats[r.city].revenue += r.price;
+            });
+            
+            let tbody = '';
+            Object.keys(cityStats).sort((a,b) => cityStats[b].orders - cityStats[a].orders).forEach(city => {
+                tbody += `
+                    <tr class="hover:bg-gray-50 dark:hover:bg-[#4E342E] transition-colors">
+                        <td class="py-3 text-gray-800 dark:text-gray-200">${city}</td>
+                        <td class="py-3 text-gray-600 dark:text-gray-400">${cityStats[city].orders}</td>
+                        <td class="py-3 font-bold text-green-600 dark:text-green-400">${cityStats[city].revenue.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('city-table-body').innerHTML = tbody || '<tr><td colspan="3" class="text-center py-4">لا توجد بيانات</td></tr>';
+        }
+
         function renderDash1Charts() {
             if(!filteredOpsData.length) return;
-            const textC = isDark() ? '#cbd5e1' : '#334155';
+            const textC = isDark() ? '#D2B48C' : '#5C4033'; // Match brown theme
+            const brownPalette = ['#8B4513', '#A0522D', '#CD853F', '#D2B48C', '#F4A460'];
+            
+            // 1. Color Donut Chart
+            let colors = {}; filteredOpsData.forEach(r => colors[r.color] = (colors[r.color]||0)+1);
+            if(charts.color) charts.color.destroy();
+            charts.color = new ApexCharts(document.querySelector("#color-chart"), {
+                series: Object.values(colors), labels: Object.keys(colors),
+                chart: { type: 'donut', height: '100%', foreColor: textC, fontFamily: 'Cairo' },
+                colors: ['#2F4F4F', '#F5F5DC', '#8B4513', '#D2B48C'], // Custom colors for actual product colors if possible
+                plotOptions: { pie: { donut: { size: '65%' } } },
+                dataLabels: { enabled: true, formatter: function (val) { return val.toFixed(1) + "%" } },
+                legend: { position: 'bottom' }
+            }); charts.color.render();
 
-            // City Bar
-            let cities = {}; filteredOpsData.forEach(r => cities[r.city] = (cities[r.city]||0)+1);
-            if(charts.city) charts.city.destroy();
-            charts.city = new ApexCharts(document.querySelector("#city-chart"), {
-                series: [{ name: 'Orders', data: Object.values(cities) }],
-                chart: { type: 'bar', height: 250, foreColor: textC, toolbar:{show:false} },
-                xaxis: { categories: Object.keys(cities) },
-                colors: ['#3b82f6']
-            }); charts.city.render();
-
-            // Payment Donut
+            // 2. Payment Donut
             let pays = {}; filteredOpsData.forEach(r => pays[r.pay_method] = (pays[r.pay_method]||0)+1);
             if(charts.pay) charts.pay.destroy();
             charts.pay = new ApexCharts(document.querySelector("#payment-chart"), {
                 series: Object.values(pays), labels: Object.keys(pays),
-                chart: { type: 'donut', height: 250, foreColor: textC },
-                colors: ['#10b981', '#ef4444']
+                chart: { type: 'pie', height: '100%', foreColor: textC, fontFamily: 'Cairo' },
+                colors: ['#A0522D', '#5C4033'],
+                dataLabels: { enabled: true },
+                legend: { position: 'bottom' }
             }); charts.pay.render();
 
-            // Status Radials
-            const sortedRate = (filteredOpsData.filter(r=>r.is_sorted).length / filteredOpsData.length * 100) || 0;
-            const delivRate = (filteredOpsData.filter(r=>r.is_delivered).length / filteredOpsData.length * 100) || 0;
-            if(charts.status) charts.status.destroy();
-            charts.status = new ApexCharts(document.querySelector("#status-chart"), {
-                series: [sortedRate.toFixed(1), delivRate.toFixed(1)],
-                labels: ['Sorted %', 'Delivered %'],
-                chart: { type: 'radialBar', height: 250, foreColor: textC },
-                colors: ['#8b5cf6', '#f59e0b']
-            }); charts.status.render();
-            
-            // Design Donut
+            // 3. Design Donut
             let designs = {}; filteredOpsData.forEach(r => designs[r.design] = (designs[r.design]||0)+1);
             if(charts.des) charts.des.destroy();
             charts.des = new ApexCharts(document.querySelector("#design-chart"), {
                 series: Object.values(designs), labels: Object.keys(designs),
-                chart: { type: 'pie', height: 250, foreColor: textC },
+                chart: { type: 'donut', height: '100%', foreColor: textC, fontFamily: 'Cairo' },
+                colors: brownPalette,
+                legend: { position: 'bottom' }
             }); charts.des.render();
+
+            // 4. Status RadialBar (Fixed)
+            const sortedCount = filteredOpsData.filter(r=>r.is_sorted).length;
+            const delivCount = filteredOpsData.filter(r=>r.is_delivered).length;
+            const total = filteredOpsData.length;
+            
+            const sortedRate = total > 0 ? ((sortedCount / total) * 100) : 0;
+            const delivRate = total > 0 ? ((delivCount / total) * 100) : 0;
+            
+            if(charts.status) charts.status.destroy();
+            charts.status = new ApexCharts(document.querySelector("#status-chart"), {
+                series: [sortedRate.toFixed(1), delivRate.toFixed(1)],
+                labels: ['نسبة الفرز', 'نسبة التسليم'],
+                chart: { type: 'radialBar', height: '100%', foreColor: textC, fontFamily: 'Cairo' },
+                plotOptions: {
+                    radialBar: {
+                        hollow: { size: '45%' },
+                        dataLabels: {
+                            name: { fontSize: '14px', fontFamily: 'Cairo' },
+                            value: { fontSize: '16px', fontWeight: 'bold', formatter: function (val) { return val + "%" } }
+                        }
+                    }
+                },
+                colors: ['#8B4513', '#CD853F']
+            }); charts.status.render();
         }
 
         function renderTable() {
             if ($.fn.DataTable.isDataTable('#orders-table')) $('#orders-table').DataTable().destroy();
             $('#orders-table').DataTable({
                 data: filteredOpsData,
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }, // Arabic Translation for DataTables
                 columns: [
-                    { data: 'order' }, { data: 'city' }, { data: 'design' }, { data: 'color' }, { data: 'price' },
-                    { data: 'pay_method', render: d => d==='Paid' ? '<span class="text-green-500">Paid (لا)</span>' : '<span class="text-red-500">COD (نعم)</span>' },
-                    { data: 'is_sorted', render: d => d ? '<span class="text-green-500 font-bold">✓ TRUE</span>' : '<span class="text-red-500 font-bold">✗ FALSE</span>' },
-                    { data: 'is_delivered', render: d => d ? '<span class="text-green-500 font-bold">✓ TRUE</span>' : '<span class="text-red-500 font-bold">✗ FALSE</span>' }
+                    { data: 'n_order' }, // Displaying the specific order number from col G as requested
+                    { data: 'city' }, 
+                    { data: 'design' }, 
+                    { data: 'color' }, 
+                    { data: 'price', render: $.fn.dataTable.render.number(',', '.', 0, '', ' ر.س') },
+                    { data: 'pay_method', render: d => d==='مدفوع مسبقاً' ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">مدفوع</span>' : '<span class="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">عند الاستلام</span>' },
+                    { data: 'is_sorted', render: d => d ? '<i class="fas fa-check-circle text-green-500 text-lg"></i>' : '<i class="fas fa-times-circle text-red-400 text-lg"></i>' },
+                    { data: 'is_delivered', render: d => d ? '<i class="fas fa-check-circle text-green-500 text-lg"></i>' : '<i class="fas fa-times-circle text-red-400 text-lg"></i>' }
                 ],
-                pageLength: 5, dom: '<"flex justify-between"lf>rt<"flex justify-between"ip>'
+                pageLength: 5,
+                lengthMenu: [5, 10, 25, 50],
+                dom: '<"flex flex-col md:flex-row justify-between items-center mb-4"lf>rt<"flex flex-col md:flex-row justify-between items-center mt-4"ip>'
             });
         }
 
@@ -367,7 +506,6 @@
             let stats = {};
             let tAssigned = 0, tInstalled = 0;
 
-            // Process Data: Calculate Total, Installed, Pending per Installer
             installData.forEach(r => {
                 let name = r['name_of_installer'];
                 if(!name || name.trim() === '') return;
@@ -376,8 +514,7 @@
                 stats[name].total++;
                 tAssigned++;
                 
-                // Done check
-                if(r['done'] === 'TRUE') {
+                if(r['done'] === 'TRUE' || r['done'] === '✓') {
                     stats[name].installed++;
                     tInstalled++;
                 } else {
@@ -385,12 +522,20 @@
                 }
             });
 
-            // KPIs
             const tInstallers = Object.keys(stats).length;
             document.getElementById('kpi-container-2').innerHTML = `
-                <div class="glass-card p-5 rounded-xl border flex justify-between"><div><p class="text-sm text-gray-500">Total Installers</p><h4 class="text-2xl font-bold">${tInstallers}</h4></div><i class="fas fa-users text-3xl text-blue-500/20"></i></div>
-                <div class="glass-card p-5 rounded-xl border flex justify-between"><div><p class="text-sm text-gray-500">Assigned Orders</p><h4 class="text-2xl font-bold">${tAssigned}</h4></div><i class="fas fa-clipboard-list text-3xl text-yellow-500/20"></i></div>
-                <div class="glass-card p-5 rounded-xl border flex justify-between"><div><p class="text-sm text-gray-500">Total Installed (ركب)</p><h4 class="text-2xl font-bold">${tInstalled}</h4></div><i class="fas fa-check-circle text-3xl text-green-500/20"></i></div>
+                <div class="glass-card p-5 rounded-xl flex justify-between items-center border-r-4 border-blue-500">
+                    <div><p class="text-sm text-gray-500 font-bold">إجمالي المناديب</p><h4 class="text-3xl font-bold">${tInstallers}</h4></div>
+                    <i class="fas fa-users text-4xl text-blue-500/20"></i>
+                </div>
+                <div class="glass-card p-5 rounded-xl flex justify-between items-center border-r-4 border-amber-500">
+                    <div><p class="text-sm text-gray-500 font-bold">الطلبات المسندة</p><h4 class="text-3xl font-bold">${tAssigned}</h4></div>
+                    <i class="fas fa-clipboard-list text-4xl text-amber-500/20"></i>
+                </div>
+                <div class="glass-card p-5 rounded-xl flex justify-between items-center border-r-4 border-green-500">
+                    <div><p class="text-sm text-gray-500 font-bold">تم التركيب</p><h4 class="text-3xl font-bold">${tInstalled}</h4></div>
+                    <i class="fas fa-check-circle text-4xl text-green-500/20"></i>
+                </div>
             `;
 
             renderDash2Charts(stats);
@@ -398,31 +543,36 @@
         }
 
         function renderDash2Charts(stats) {
-            if(!stats) return; // if called from theme toggle
-            const textC = isDark() ? '#cbd5e1' : '#334155';
+            if(!stats) return; 
+            const textC = isDark() ? '#D2B48C' : '#5C4033';
             
-            const names = Object.keys(stats);
-            const installedArr = names.map(n => stats[n].installed);
-            const pendingArr = names.map(n => stats[n].pending);
+            const sortedNames = Object.keys(stats).sort((a,b) => stats[b].installed - stats[a].installed);
+            const installedArr = sortedNames.map(n => stats[n].installed);
+            const pendingArr = sortedNames.map(n => stats[n].pending);
 
             // Stacked Bar
             if(charts.instStack) charts.instStack.destroy();
             charts.instStack = new ApexCharts(document.querySelector("#installer-stacked-chart"), {
                 series: [
-                    { name: 'Installed (ركب)', data: installedArr },
-                    { name: 'Pending (لسه)', data: pendingArr }
+                    { name: 'تم التركيب', data: installedArr },
+                    { name: 'قيد الانتظار', data: pendingArr }
                 ],
-                chart: { type: 'bar', height: 350, stacked: true, foreColor: textC, toolbar:{show:false} },
-                plotOptions: { bar: { horizontal: true } },
-                xaxis: { categories: names },
-                colors: ['#10b981', '#f59e0b']
+                chart: { type: 'bar', height: 350, stacked: true, foreColor: textC, fontFamily: 'Cairo', toolbar:{show:false} },
+                plotOptions: { bar: { horizontal: true, borderRadius: 2 } },
+                xaxis: { categories: sortedNames },
+                colors: ['#8B4513', '#D2B48C'],
+                legend: { position: 'top', horizontalAlign: 'right' }
             }); charts.instStack.render();
             
             // Top Performers Donut
+            const top5Names = sortedNames.slice(0, 5);
+            const top5Vals = top5Names.map(n => stats[n].installed);
+            
             if(charts.instDonut) charts.instDonut.destroy();
             charts.instDonut = new ApexCharts(document.querySelector("#installer-donut-chart"), {
-                series: installedArr, labels: names,
-                chart: { type: 'donut', height: 350, foreColor: textC },
+                series: top5Vals, labels: top5Names,
+                chart: { type: 'donut', height: 350, foreColor: textC, fontFamily: 'Cairo' },
+                colors: ['#5C4033', '#8B4513', '#A0522D', '#CD853F', '#D2B48C'],
                 dataLabels: { enabled: false },
                 legend: { position: 'bottom' }
             }); charts.instDonut.render();
@@ -434,16 +584,18 @@
                 const s = stats[name];
                 const rate = ((s.installed / s.total) * 100).toFixed(1);
                 tbody += `
-                    <tr class="border-b dark:border-gray-700">
-                        <td class="p-3 font-semibold">${name}</td>
+                    <tr class="border-b border-gray-100 dark:border-[#5C4033] hover:bg-gray-50 dark:hover:bg-[#4E342E]">
+                        <td class="p-3 font-bold text-primary dark:text-secondary">${name}</td>
                         <td class="p-3">${s.total}</td>
-                        <td class="p-3 text-green-500 font-bold">${s.installed}</td>
-                        <td class="p-3 text-orange-500 font-bold">${s.pending}</td>
+                        <td class="p-3 text-green-600 font-bold">${s.installed}</td>
+                        <td class="p-3 text-amber-600 font-bold">${s.pending}</td>
                         <td class="p-3">
-                            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-1">
-                              <div class="bg-primary h-2.5 rounded-full" style="width: ${rate}%"></div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold min-w-[30px]">${rate}%</span>
+                                <div class="w-full bg-gray-200 rounded-full h-2 dark:bg-[#3E2723]">
+                                  <div class="bg-primary h-2 rounded-full" style="width: ${rate}%"></div>
+                                </div>
                             </div>
-                            <span class="text-xs">${rate}%</span>
                         </td>
                     </tr>
                 `;
@@ -451,7 +603,11 @@
             document.getElementById('installers-table-body').innerHTML = tbody;
             
             if ($.fn.DataTable.isDataTable('#installers-table')) $('#installers-table').DataTable().destroy();
-            $('#installers-table').DataTable({ pageLength: 5, dom: 'rt<"flex justify-between"ip>' });
+            $('#installers-table').DataTable({ 
+                pageLength: 5, 
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' },
+                dom: 'rt<"flex flex-col md:flex-row justify-between items-center mt-4"ip>' 
+            });
         }
 
         init();
