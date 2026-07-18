@@ -44,8 +44,10 @@
         
         .dataTables_wrapper .dataTables_paginate .paginate_button { margin: 0 4px !important; padding: 0.2em 0.8em !important; }
 
-        /* ApexCharts Tooltip Customization (Black Background & White Text) */
-        .apexcharts-tooltip {
+        /* ApexCharts Tooltip Customization (Force Black Background & White Text) */
+        .apexcharts-tooltip, 
+        .apexcharts-tooltip.apexcharts-theme-light,
+        .apexcharts-tooltip.apexcharts-theme-dark {
             background: #1a1a1a !important; 
             color: #ffffff !important; 
             border: 1px solid #333333 !important;
@@ -60,13 +62,16 @@
             font-weight: bold !important;
             padding: 8px 12px !important;
         }
-        .apexcharts-tooltip-text {
+        .apexcharts-tooltip-text, 
+        .apexcharts-tooltip-text-y-value, 
+        .apexcharts-tooltip-text-y-label,
+        .apexcharts-tooltip-series-group {
             color: #ffffff !important;
             font-family: 'Cairo', sans-serif !important;
         }
-        .apexcharts-tooltip * {
-            color: #ffffff !important;
-        }
+        /* Hide duplicated span sometimes injected by ApexCharts */
+        .apexcharts-tooltip-text-z-value { display: none !important; }
+        
         .apexcharts-tooltip-marker {
             margin-right: 8px !important;
             margin-left: 0 !important;
@@ -76,6 +81,11 @@
             flex-direction: row-reverse !important;
             justify-content: flex-end !important;
             align-items: center !important;
+            padding: 4px 8px !important;
+            background: transparent !important; /* overrides weird default hovers */
+        }
+        .apexcharts-tooltip-series-group.active {
+            background: rgba(255, 255, 255, 0.05) !important;
         }
         .apexcharts-tooltip-text-y-value {
             margin-right: 4px !important;
@@ -396,13 +406,22 @@
             Papa.parse(CSV_1, { download: true, header: true, skipEmptyLines: true, complete: res => {
                 rawOpsData = res.data.map(row => {
                     const payVal = (row['pay_method'] || '').trim();
-                    const designVal = (row['design'] || '').trim();
+                    const rawDesign = (row['design'] || '').trim();
                     const qty = parseInt(row['count'] || row['amount'] || row['Quantity'] || 1, 10);
                     
+                    // Renaming Designs
+                    let finalDesign = 'غير محدد';
                     let unitPrice = 0;
-                    if (designVal === 'design-1') unitPrice = 299;
-                    else if (designVal === 'design-2') unitPrice = 249;
-                    else unitPrice = parseFloat(row['n_order']) || 0; 
+                    if (rawDesign === 'design-1') {
+                        finalDesign = 'الحديدي';
+                        unitPrice = 299;
+                    } else if (rawDesign === 'design-2') {
+                        finalDesign = 'الصندوق';
+                        unitPrice = 249;
+                    } else {
+                        finalDesign = rawDesign;
+                        unitPrice = parseFloat(row['n_order']) || 0; 
+                    }
 
                     const valK = String(row['dis']).trim().toUpperCase();
                     const isSorted = (valK === 'TRUE' || valK === '✓' || valK === '1');
@@ -414,7 +433,7 @@
                         n_order: String(row['n_order'] || '').trim(),
                         order: row['order_number'] || 'غير متوفر',
                         city: row['city'] || 'غير محدد',
-                        design: designVal || 'غير محدد',
+                        design: finalDesign,
                         color: row['type'] || 'غير محدد',
                         price: unitPrice * qty,
                         qty: qty,
@@ -440,7 +459,6 @@
             }});
         }
 
-        // Date Sorter: Parses "Day.Month" (e.g. 3.7 -> July 3rd) and sorts Oldest first.
         function sortDates(a, b) {
             if(!a.includes('.') || !b.includes('.')) return a.localeCompare(b);
             let [d1, m1] = a.split('.').map(Number);
@@ -450,7 +468,6 @@
             return d1 - d2;
         }
 
-        // Render Multi-select Grid
         function renderOrderGrid(containerId, items, isInstall) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
@@ -511,9 +528,7 @@
             }
         }
 
-        // --- Filters Dash 1 ---
         function populateFilters() {
-            // Setup regular selects
             const addOpts = (id, key) => {
                 const unique = [...new Set(rawOpsData.map(r => r[key]))].filter(val => val && val.trim() !== '' && val !== 'غير متوفر' && val !== 'غير محدد').sort();
                 const sel = document.getElementById(id);
@@ -524,7 +539,6 @@
             addOpts('f-design', 'design');
             addOpts('f-color', 'color');
 
-            // Setup Order Number Multi-select Grid
             const uniqueOrders = [...new Set(rawOpsData.map(r => r.n_order))].filter(v => v && v !== 'غير متوفر');
             uniqueOrders.sort(sortDates);
             renderOrderGrid('f-order-grid', uniqueOrders, false);
@@ -556,10 +570,8 @@
         window.resetFilters = function() {
             document.querySelectorAll('#dashboard1 select').forEach(s => s.value = 'all');
             clearOrderSelection(false);
-            // clearOrderSelection already applies filters and renders.
         }
 
-        // --- Filters Dash 2 ---
         function populateInstallFilters() {
             const uniqueOrders = [...new Set(rawInstallData.map(r => r.n_order))].filter(v => v);
             uniqueOrders.sort(sortDates);
@@ -577,7 +589,6 @@
             clearOrderSelection(true);
         }
 
-        // --- DASHBOARD 1 ---
         function renderDashboard1() {
             const tHangers = filteredOpsData.reduce((s, r) => s + r.qty, 0); 
             const tRev = filteredOpsData.reduce((s, r) => s + r.price, 0);
@@ -634,7 +645,6 @@
             const textC = isDark() ? '#D2B48C' : '#5C4033';
             const brownPalette = ['#8B4513', '#A0522D', '#CD853F', '#D2B48C', '#F4A460'];
             
-            // 1. Color Donut Chart (Based on Quantity)
             let colors = {}; filteredOpsData.forEach(r => colors[r.color] = (colors[r.color]||0) + r.qty);
             if(charts.color) charts.color.destroy();
             charts.color = new ApexCharts(document.querySelector("#color-chart"), {
@@ -643,10 +653,10 @@
                 colors: ['#2F4F4F', '#F5F5DC', '#8B4513', '#D2B48C'], 
                 plotOptions: { pie: { donut: { size: '65%' } } },
                 dataLabels: { enabled: true, formatter: function (val) { return val.toFixed(1) + "%" } },
+                tooltip: { theme: 'dark', y: { formatter: function(val) { return val; } } },
                 legend: { position: 'bottom' }
             }); charts.color.render();
 
-            // 2. Payment Donut (Based on Quantity)
             let pays = {}; filteredOpsData.forEach(r => pays[r.pay_method] = (pays[r.pay_method]||0) + r.qty);
             if(charts.pay) charts.pay.destroy();
             charts.pay = new ApexCharts(document.querySelector("#payment-chart"), {
@@ -654,16 +664,17 @@
                 chart: { type: 'pie', height: '100%', foreColor: textC, fontFamily: 'Cairo' },
                 colors: ['#A0522D', '#5C4033'],
                 dataLabels: { enabled: true },
+                tooltip: { theme: 'dark', y: { formatter: function(val) { return val; } } },
                 legend: { position: 'bottom' }
             }); charts.pay.render();
 
-            // 3. Design Donut (Based on Quantity)
             let designs = {}; filteredOpsData.forEach(r => designs[r.design] = (designs[r.design]||0) + r.qty);
             if(charts.des) charts.des.destroy();
             charts.des = new ApexCharts(document.querySelector("#design-chart"), {
                 series: Object.values(designs), labels: Object.keys(designs),
                 chart: { type: 'donut', height: '100%', foreColor: textC, fontFamily: 'Cairo' },
                 colors: brownPalette,
+                tooltip: { theme: 'dark', y: { formatter: function(val) { return val; } } },
                 legend: { position: 'bottom' }
             }); charts.des.render();
 
@@ -674,7 +685,6 @@
             const sortedRate = parseFloat((totalHangers > 0 ? ((sortedHangers / totalHangers) * 100) : 0).toFixed(1));
             const delivRate = parseFloat((totalHangers > 0 ? ((delivHangers / totalHangers) * 100) : 0).toFixed(1));
             
-            // 4. Sorting RadialBar
             if(charts.sorting) charts.sorting.destroy();
             charts.sorting = new ApexCharts(document.querySelector("#sorting-chart"), {
                 series: [sortedRate],
@@ -689,10 +699,10 @@
                         }
                     }
                 },
+                tooltip: { enabled: false }, // Avoid duplicate info on hover for radial
                 colors: ['#8B4513']
             }); charts.sorting.render();
 
-            // 5. Delivery RadialBar
             if(charts.delivery) charts.delivery.destroy();
             charts.delivery = new ApexCharts(document.querySelector("#delivery-chart"), {
                 series: [delivRate],
@@ -707,6 +717,7 @@
                         }
                     }
                 },
+                tooltip: { enabled: false },
                 colors: ['#CD853F']
             }); charts.delivery.render();
         }
@@ -734,7 +745,6 @@
             });
         }
 
-        // --- DASHBOARD 2 (Installers) ---
         function renderDashboard2() {
             let stats = {};
             let tAssigned = 0, tInstalled = 0;
@@ -786,7 +796,6 @@
             const installedArr = sortedNames.map(n => stats[n].installed);
             const pendingArr = sortedNames.map(n => stats[n].pending);
 
-            // Stacked Bar
             if(charts.instStack) charts.instStack.destroy();
             charts.instStack = new ApexCharts(document.querySelector("#installer-stacked-chart"), {
                 series: [
@@ -797,10 +806,15 @@
                 plotOptions: { bar: { horizontal: true, borderRadius: 2 } },
                 xaxis: { categories: sortedNames },
                 colors: ['#8B4513', '#D2B48C'],
+                tooltip: { 
+                    theme: 'dark', 
+                    shared: true, 
+                    intersect: false,
+                    y: { formatter: function(val) { return val; } }
+                },
                 legend: { position: 'top', horizontalAlign: 'right' }
             }); charts.instStack.render();
             
-            // Top Performers Donut
             const top5Names = sortedNames.slice(0, 5);
             const top5Vals = top5Names.map(n => stats[n].installed);
             
@@ -810,6 +824,7 @@
                 chart: { type: 'donut', height: 350, foreColor: textC, fontFamily: 'Cairo' },
                 colors: ['#5C4033', '#8B4513', '#A0522D', '#CD853F', '#D2B48C'],
                 dataLabels: { enabled: false },
+                tooltip: { theme: 'dark', y: { formatter: function(val) { return val; } } },
                 legend: { position: 'bottom' }
             }); charts.instDonut.render();
         }
