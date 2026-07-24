@@ -648,39 +648,10 @@
         }
 
         function renderDashboard1() {
-            let cityStats = {};
-            let orderToCity = {};
-            
-            filteredOpsData.forEach(r => {
-                let n = String(r.n_order).trim();
-                if(n) orderToCity[n] = r.city;
-
-                if(!cityStats[r.city]) cityStats[r.city] = { req: 0, sorted: 0, delivered: 0, assigned: 0 };
-                cityStats[r.city].req += r.qty;
-                if(r.is_sorted) cityStats[r.city].sorted += r.qty;
-                if(r.is_delivered) cityStats[r.city].delivered += r.qty;
-            });
-            
-            filteredInstallData.forEach(r => {
-                let n = String(r.n_order).trim();
-                let city = orderToCity[n] || 'غير محدد';
-                let qty = r.parsedQty || 1;
-
-                if(!cityStats[city]) cityStats[city] = { req: 0, sorted: 0, delivered: 0, assigned: 0 };
-                cityStats[city].assigned += qty;
-            });
-
-            Object.keys(cityStats).forEach(c => {
-                let s = cityStats[c];
-                if(s.assigned > s.req) s.req = s.assigned;
-                if(s.assigned > s.sorted) s.sorted = s.assigned;
-                if(s.assigned > s.delivered) s.delivered = s.assigned;
-            });
-
-            const tHangers = Object.values(cityStats).reduce((s, c) => s + c.req, 0); 
-            const sortedHangers = Object.values(cityStats).reduce((s, c) => s + c.sorted, 0);
-            const delivHangers = Object.values(cityStats).reduce((s, c) => s + c.delivered, 0);
+            const tHangers = filteredOpsData.reduce((s, r) => s + r.qty, 0); 
             const tRev = filteredOpsData.reduce((s, r) => s + r.price, 0);
+            const sortedHangers = filteredOpsData.filter(r => r.is_sorted).reduce((s, r) => s + r.qty, 0);
+            const delivHangers = filteredOpsData.filter(r => r.is_delivered).reduce((s, r) => s + r.qty, 0);
 
             document.getElementById('kpi-container-1').innerHTML = `
                 <div class="glass-card p-5 rounded-xl flex items-center justify-between border-b-4 border-primary">
@@ -1016,20 +987,16 @@
                 }
             });
 
-            // --- 3. Enforce Logical Constraints for Global & City Stats ---
-            // If assigned > sorted, it means it was assigned (logically sorted) but checkbox missed.
-            Object.keys(cityStats).forEach(c => {
-                let s = cityStats[c];
-                if(s.assigned > s.req) s.req = s.assigned;
-                if(s.assigned > s.sorted) s.sorted = s.assigned;
-                if(s.assigned > s.delivered) s.delivered = s.assigned;
+            const tHangers = filteredOpsData.reduce((s, r) => s + r.qty, 0); 
+            const sortedHangers = filteredOpsData.filter(r => r.is_sorted).reduce((s, r) => s + r.qty, 0);
+            const delivHangers = filteredOpsData.filter(r => r.is_delivered).reduce((s, r) => s + r.qty, 0);
+            
+            let tAssigned = 0;
+            let tInstalled = 0;
+            Object.values(installerStats).forEach(s => {
+                tAssigned += s.assigned;
+                tInstalled += s.installed;
             });
-
-            const tHangers = Object.values(cityStats).reduce((s, c) => s + c.req, 0); 
-            const sortedHangers = Object.values(cityStats).reduce((s, c) => s + c.sorted, 0);
-            const delivHangers = Object.values(cityStats).reduce((s, c) => s + c.delivered, 0);
-            const tAssigned = Object.values(cityStats).reduce((s, c) => s + c.assigned, 0);
-            const tInstalled = Object.values(cityStats).reduce((s, c) => s + c.installed, 0);
             
             // --- 4. Prepare UI Rows ---
             let unsortedOrders = {};
