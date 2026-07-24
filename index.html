@@ -1032,9 +1032,17 @@
             const tInstalled = Object.values(cityStats).reduce((s, c) => s + c.installed, 0);
             
             // --- 4. Prepare UI Rows ---
-            let unsortedOrders = filteredOpsData.filter(r => !r.is_sorted);
-            let unsortedRows = unsortedOrders.map(r => `<tr><td style="padding:8px; border:1px solid #ddd;">${r.order}</td><td style="padding:8px; border:1px solid #ddd;">${r.n_order}</td><td style="padding:8px; border:1px solid #ddd;">${r.city}</td><td style="padding:8px; border:1px solid #ddd; color:red; font-weight:bold;">${r.qty}</td></tr>`).join('');
-            if(unsortedOrders.length === 0) {
+            let unsortedOrders = {};
+            filteredOpsData.filter(r => !r.is_sorted).forEach(r => {
+                let n = String(r.n_order).trim();
+                if(!unsortedOrders[n]) {
+                    unsortedOrders[n] = { order: r.order, n_order: n, city: r.city, qty: 0 };
+                }
+                unsortedOrders[n].qty += r.qty;
+            });
+            
+            let unsortedRows = Object.values(unsortedOrders).map(r => `<tr><td style="padding:8px; border:1px solid #ddd;">${r.order}</td><td style="padding:8px; border:1px solid #ddd; font-weight:bold;">${r.n_order}</td><td style="padding:8px; border:1px solid #ddd;">${r.city}</td><td style="padding:8px; border:1px solid #ddd; color:red; font-weight:bold;">${r.qty}</td></tr>`).join('');
+            if(Object.keys(unsortedOrders).length === 0) {
                 unsortedRows = `<tr><td colspan="4" style="padding:8px; border:1px solid #ddd; text-align:center;">جميع الطلبات تم فرزها بنجاح</td></tr>`;
             }
 
