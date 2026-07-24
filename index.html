@@ -877,66 +877,69 @@
             const sortedHangers = filteredOpsData.filter(r => r.is_sorted).reduce((s, r) => s + r.qty, 0);
             const delivHangers = filteredOpsData.filter(r => r.is_delivered).reduce((s, r) => s + r.qty, 0);
             
-            // Map orders for cross-reference
-            let orderToCity = {};
-            let orderToDesign = {};
-            let orderDeliveredOps = {};
-            filteredOpsData.forEach(r => { 
-                orderToCity[r.n_order] = r.city; 
-                orderToDesign[r.n_order] = { design: r.design, color: r.color };
-                orderDeliveredOps[r.n_order] = r.is_delivered;
+            // Unsorted Orders Table
+            let unsortedOrders = filteredOpsData.filter(r => !r.is_sorted);
+            let unsortedRows = unsortedOrders.map(r => `<tr><td style="padding:8px; border:1px solid #ddd;">${r.order}</td><td style="padding:8px; border:1px solid #ddd;">${r.n_order}</td><td style="padding:8px; border:1px solid #ddd;">${r.city}</td><td style="padding:8px; border:1px solid #ddd; color:red;">لم يتم الفرز</td></tr>`).join('');
+            if(unsortedOrders.length === 0) {
+                unsortedRows = `<tr><td colspan="4" style="padding:8px; border:1px solid #ddd; text-align:center;">جميع الطلبات تم فرزها بنجاح</td></tr>`;
+            }
+
+            // Colors Stats
+            let colors = {}; 
+            filteredOpsData.forEach(r => colors[r.color] = (colors[r.color]||0) + r.qty);
+            let colorRows = Object.keys(colors).map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c}</td><td style="padding:8px; border:1px solid #ddd;">${colors[c]}</td></tr>`).join('');
+
+            // Cross-reference lookup from Installers to Ops
+            // Using n_order to link tables so that quantities perfectly match Ops data
+            let installLookup = {};
+            filteredInstallData.forEach(r => {
+                const doneVal = String(r['done']).trim().toUpperCase();
+                const isInstalled = (doneVal === 'TRUE' || doneVal === '✓' || doneVal === '1');
+                let name = String(r['name_of_installer'] || '').trim();
+                
+                if (name && !installLookup[r.n_order]) {
+                    installLookup[r.n_order] = { name: name, isInstalled: isInstalled };
+                }
             });
 
-            // City Stats
+            // City & Design Base Stats
             let cityStats = {};
+            let designStats = {};
+            
+            let tAssigned = 0, tInstalled = 0;
+            let installerStats = {};
+
             filteredOpsData.forEach(r => {
+                // Initialize City
                 if(!cityStats[r.city]) cityStats[r.city] = { req: 0, sorted: 0, delivered: 0, assigned: 0, installed: 0 };
                 cityStats[r.city].req += r.qty;
                 if(r.is_sorted) cityStats[r.city].sorted += r.qty;
                 if(r.is_delivered) cityStats[r.city].delivered += r.qty;
-            });
 
-            // Design Stats
-            let designStats = {};
-            filteredOpsData.forEach(r => {
-                const key = `${r.design} - ${r.color}`;
-                if(!designStats[key]) designStats[key] = { req: 0, installed: 0 };
-                designStats[key].req += r.qty;
-            });
+                // Initialize Design
+                const dKey = `${r.design} - ${r.color}`;
+                if(!designStats[dKey]) designStats[dKey] = { req: 0, installed: 0 };
+                designStats[dKey].req += r.qty;
 
-            let tAssigned = 0, tInstalled = 0;
-            let installerStats = {};
-            filteredInstallData.forEach(r => {
-                const qty = r.parsedQty || 1;
-                tAssigned += qty;
-                
-                const doneVal = String(r['done']).trim().toUpperCase();
-                const isInstalled = (doneVal === 'TRUE' || doneVal === '✓' || doneVal === '1');
-                if(isInstalled) tInstalled += qty;
+                // Process Installers mapping
+                let inst = installLookup[r.n_order];
+                if (inst) {
+                    tAssigned += r.qty;
+                    if (inst.isInstalled) tInstalled += r.qty;
 
-                const c = orderToCity[r.n_order];
-                if(c && cityStats[c]) {
-                    cityStats[c].assigned += qty;
-                    if(isInstalled) cityStats[c].installed += qty;
-                }
+                    cityStats[r.city].assigned += r.qty;
+                    if(inst.isInstalled) cityStats[r.city].installed += r.qty;
+                    
+                    if(inst.isInstalled) designStats[dKey].installed += r.qty;
 
-                const d = orderToDesign[r.n_order];
-                if(d) {
-                    const key = `${d.design} - ${d.color}`;
-                    if(designStats[key] && isInstalled) {
-                        designStats[key].installed += qty;
-                    }
-                }
-
-                let name = r['name_of_installer'];
-                if(name && name.trim() !== '') {
-                    if(!installerStats[name]) installerStats[name] = { assigned: 0, delivered: 0, installed: 0, pending: 0 };
-                    installerStats[name].assigned += qty;
-                    if(orderDeliveredOps[r.n_order]) installerStats[name].delivered += qty;
-                    if(isInstalled) {
-                        installerStats[name].installed += qty;
+                    if(!installerStats[inst.name]) installerStats[inst.name] = { assigned: 0, delivered: 0, installed: 0, pending: 0 };
+                    installerStats[inst.name].assigned += r.qty;
+                    if (r.is_delivered) installerStats[inst.name].delivered += r.qty;
+                    
+                    if (inst.isInstalled) {
+                        installerStats[inst.name].installed += r.qty;
                     } else {
-                        installerStats[name].pending += qty;
+                        installerStats[inst.name].pending += r.qty;
                     }
                 }
             });
@@ -960,6 +963,21 @@
                         <h1 style="color: #8B4513; margin: 0; font-size: 28px;">متجر منشر - تقرير العمليات الشامل</h1>
                         <p style="margin: 5px 0 0 0; color: #666;">تاريخ الإصدار: ${date} ${time}</p>
                     </div>
+
+                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">طلبات لم يتم فرزها</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center;">
+                        <thead>
+                            <tr style="background-color: #dc2626; color: white;">
+                                <th style="padding: 10px; border: 1px solid #ddd;">رقم الطلب (Order)</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">رقم الطلبية (N_Order)</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المدينة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${unsortedRows}
+                        </tbody>
+                    </table>
 
                     <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">الإحصائيات العامة (العمليات)</h2>
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
@@ -1047,10 +1065,6 @@
                             ${installerRows}
                         </tbody>
                     </table>
-                    
-                    <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #999;">
-                        تم إنشاء هذا التقرير آلياً من نظام منشر
-                    </div>
                 </div>
             `;
 
