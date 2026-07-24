@@ -1041,13 +1041,13 @@
                 unsortedOrders[n].qty += r.qty;
             });
             
-            let unsortedRows = Object.values(unsortedOrders).map(r => `<tr><td style="padding:8px; border:1px solid #ddd;">${r.order}</td><td style="padding:8px; border:1px solid #ddd; font-weight:bold;">${r.n_order}</td><td style="padding:8px; border:1px solid #ddd;">${r.city}</td><td style="padding:8px; border:1px solid #ddd; color:red; font-weight:bold;">${r.qty}</td></tr>`).join('');
+            let unsortedRows = Object.values(unsortedOrders).map(r => `<tr><td style="padding:8px; border:1px solid #ddd; font-weight:bold;">${r.n_order}</td><td style="padding:8px; border:1px solid #ddd; color:red; font-weight:bold;">${r.qty}</td></tr>`).join('');
             if(Object.keys(unsortedOrders).length === 0) {
-                unsortedRows = `<tr><td colspan="4" style="padding:8px; border:1px solid #ddd; text-align:center;">جميع الطلبات تم فرزها بنجاح</td></tr>`;
+                unsortedRows = `<tr><td colspan="2" style="padding:8px; border:1px solid #ddd; text-align:center;">جميع الطلبات تم فرزها بنجاح</td></tr>`;
             }
 
             let colorRows = Object.keys(colors).map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c}</td><td style="padding:8px; border:1px solid #ddd;">${colors[c]}</td></tr>`).join('');
-            let cityRows = Object.keys(cityStats).map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].req}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].sorted}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].assigned}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].delivered}</td><td style="padding:8px; border:1px solid #ddd; color:green;">${cityStats[c].installed}</td></tr>`).join('');
+            let cityRows = Object.keys(cityStats).map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].req}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].sorted}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].delivered}</td><td style="padding:8px; border:1px solid #ddd; color:green;">${cityStats[c].installed}</td></tr>`).join('');
             let designRows = Object.keys(designStats).map(d => `<tr><td style="padding:8px; border:1px solid #ddd;">${d}</td><td style="padding:8px; border:1px solid #ddd;">${designStats[d].req}</td><td style="padding:8px; border:1px solid #ddd; color:green;">${designStats[d].installed}</td></tr>`).join('');
 
             let installerRows = '';
@@ -1070,9 +1070,7 @@
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center;">
                         <thead>
                             <tr style="background-color: #dc2626; color: white;">
-                                <th style="padding: 10px; border: 1px solid #ddd;">رقم الطلب (Order)</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">رقم الطلبية (N_Order)</th>
-                                <th style="padding: 10px; border: 1px solid #ddd;">المدينة</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">الكمية</th>
                             </tr>
                         </thead>
@@ -1112,7 +1110,6 @@
                                 <th style="padding: 10px; border: 1px solid #ddd;">المدينة</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">المطلوبة</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">المفرزة</th>
-                                <th style="padding: 10px; border: 1px solid #ddd;">المسندة</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">المسلمة</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">المركبة</th>
                             </tr>
