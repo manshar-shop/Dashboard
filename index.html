@@ -877,32 +877,78 @@
             const sortedHangers = filteredOpsData.filter(r => r.is_sorted).reduce((s, r) => s + r.qty, 0);
             const delivHangers = filteredOpsData.filter(r => r.is_delivered).reduce((s, r) => s + r.qty, 0);
             
-            let colors = {}; 
-            filteredOpsData.forEach(r => colors[r.color] = (colors[r.color]||0) + r.qty);
-            let colorRows = Object.keys(colors).map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c}</td><td style="padding:8px; border:1px solid #ddd;">${colors[c]}</td></tr>`).join('');
+            // Map orders for cross-reference
+            let orderToCity = {};
+            let orderToDesign = {};
+            let orderDeliveredOps = {};
+            filteredOpsData.forEach(r => { 
+                orderToCity[r.n_order] = r.city; 
+                orderToDesign[r.n_order] = { design: r.design, color: r.color };
+                orderDeliveredOps[r.n_order] = r.is_delivered;
+            });
+
+            // City Stats
+            let cityStats = {};
+            filteredOpsData.forEach(r => {
+                if(!cityStats[r.city]) cityStats[r.city] = { req: 0, sorted: 0, delivered: 0, assigned: 0, installed: 0 };
+                cityStats[r.city].req += r.qty;
+                if(r.is_sorted) cityStats[r.city].sorted += r.qty;
+                if(r.is_delivered) cityStats[r.city].delivered += r.qty;
+            });
+
+            // Design Stats
+            let designStats = {};
+            filteredOpsData.forEach(r => {
+                const key = `${r.design} - ${r.color}`;
+                if(!designStats[key]) designStats[key] = { req: 0, installed: 0 };
+                designStats[key].req += r.qty;
+            });
 
             let tAssigned = 0, tInstalled = 0;
-            let installerRows = '';
-            let stats = {};
+            let installerStats = {};
             filteredInstallData.forEach(r => {
-                let name = r['name_of_installer'];
-                if(!name || name.trim() === '') return;
-                if(!stats[name]) stats[name] = { total: 0, installed: 0, pending: 0 };
                 const qty = r.parsedQty || 1;
-                stats[name].total += qty;
                 tAssigned += qty;
+                
                 const doneVal = String(r['done']).trim().toUpperCase();
-                if(doneVal === 'TRUE' || doneVal === '✓' || doneVal === '1') {
-                    stats[name].installed += qty;
-                    tInstalled += qty;
-                } else {
-                    stats[name].pending += qty;
+                const isInstalled = (doneVal === 'TRUE' || doneVal === '✓' || doneVal === '1');
+                if(isInstalled) tInstalled += qty;
+
+                const c = orderToCity[r.n_order];
+                if(c && cityStats[c]) {
+                    cityStats[c].assigned += qty;
+                    if(isInstalled) cityStats[c].installed += qty;
+                }
+
+                const d = orderToDesign[r.n_order];
+                if(d) {
+                    const key = `${d.design} - ${d.color}`;
+                    if(designStats[key] && isInstalled) {
+                        designStats[key].installed += qty;
+                    }
+                }
+
+                let name = r['name_of_installer'];
+                if(name && name.trim() !== '') {
+                    if(!installerStats[name]) installerStats[name] = { assigned: 0, delivered: 0, installed: 0, pending: 0 };
+                    installerStats[name].assigned += qty;
+                    if(orderDeliveredOps[r.n_order]) installerStats[name].delivered += qty;
+                    if(isInstalled) {
+                        installerStats[name].installed += qty;
+                    } else {
+                        installerStats[name].pending += qty;
+                    }
                 }
             });
 
-            Object.keys(stats).sort((a,b) => stats[b].installed - stats[a].installed).forEach(name => {
-                const s = stats[name];
-                installerRows += `<tr><td style="padding:8px; border:1px solid #ddd;">${name}</td><td style="padding:8px; border:1px solid #ddd;">${s.total}</td><td style="padding:8px; border:1px solid #ddd; color:green; font-weight:bold;">${s.installed}</td><td style="padding:8px; border:1px solid #ddd; color:orange; font-weight:bold;">${s.pending}</td></tr>`;
+            let cityRows = Object.keys(cityStats).map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].req}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].sorted}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].assigned}</td><td style="padding:8px; border:1px solid #ddd;">${cityStats[c].delivered}</td><td style="padding:8px; border:1px solid #ddd; color:green;">${cityStats[c].installed}</td></tr>`).join('');
+
+            let designRows = Object.keys(designStats).map(d => `<tr><td style="padding:8px; border:1px solid #ddd;">${d}</td><td style="padding:8px; border:1px solid #ddd;">${designStats[d].req}</td><td style="padding:8px; border:1px solid #ddd; color:green;">${designStats[d].installed}</td></tr>`).join('');
+
+            let installerRows = '';
+            Object.keys(installerStats).sort((a,b) => installerStats[b].installed - installerStats[a].installed).forEach(name => {
+                const s = installerStats[name];
+                installerRows += `<tr><td style="padding:8px; border:1px solid #ddd;">${name}</td><td style="padding:8px; border:1px solid #ddd;">${s.assigned}</td><td style="padding:8px; border:1px solid #ddd;">${s.delivered}</td><td style="padding:8px; border:1px solid #ddd; color:green; font-weight:bold;">${s.installed}</td><td style="padding:8px; border:1px solid #ddd; color:orange; font-weight:bold;">${s.pending}</td></tr>`;
             });
 
             const date = new Date().toLocaleDateString('ar-EG');
@@ -926,21 +972,47 @@
                             <td style="padding: 12px; border: 1px solid #ddd;">${sortedHangers}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي المسلم للمناديب</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي المسلم للمناديب (من المخزن)</td>
                             <td style="padding: 12px; border: 1px solid #ddd;">${delivHangers}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي المناشر المسندة للمناديب</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${tAssigned}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي التركيب</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: green;">${tInstalled}</td>
                         </tr>
                     </table>
 
-                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">تفصيل الكميات والألوان</h2>
+                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">إحصائيات المدن</h2>
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center;">
                         <thead>
                             <tr style="background-color: #8B4513; color: white;">
-                                <th style="padding: 10px; border: 1px solid #ddd;">اللون / النوع</th>
-                                <th style="padding: 10px; border: 1px solid #ddd;">الكمية المطلوبة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المدينة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المطلوبة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المفرزة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المسندة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المسلمة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المركبة</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${colorRows}
+                            ${cityRows}
+                        </tbody>
+                    </table>
+
+                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">إحصائيات الأنواع والألوان</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center;">
+                        <thead>
+                            <tr style="background-color: #8B4513; color: white;">
+                                <th style="padding: 10px; border: 1px solid #ddd;">النوع واللون</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">الكمية المطلوبة</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">الكمية المركبة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${designRows}
                         </tbody>
                     </table>
 
@@ -949,6 +1021,10 @@
                         <tr>
                             <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; width: 50%; font-weight: bold;">إجمالي المناشر المسندة للمناديب</td>
                             <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${tAssigned}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي المسلم للمناديب</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${delivHangers}</td>
                         </tr>
                         <tr>
                             <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي ما تم تركيبه</td>
@@ -962,6 +1038,7 @@
                             <tr style="background-color: #8B4513; color: white;">
                                 <th style="padding: 10px; border: 1px solid #ddd;">اسم المندوب</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">المسند</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المسلم</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">المركب</th>
                                 <th style="padding: 10px; border: 1px solid #ddd;">الانتظار</th>
                             </tr>
