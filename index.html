@@ -109,6 +109,9 @@
                 <button onclick="switchTab('dashboard2')" class="w-full flex items-center p-3 rounded-lg hover:bg-amber-100 dark:hover:bg-[#5C4033] tab-btn" id="btn-dash2">
                     <i class="fas fa-tools w-6 me-2"></i> أداء المناديب
                 </button>
+                <button onclick="switchTab('dashboard3')" class="w-full flex items-center p-3 rounded-lg hover:bg-amber-100 dark:hover:bg-[#5C4033] tab-btn" id="btn-dash3">
+                    <i class="fas fa-clipboard-check w-6 me-2"></i> مراجعة البيانات
+                </button>
             </nav>
             <div class="p-4 border-t dark:border-[#5C4033]">
                 <button id="theme-toggle" class="w-full p-2 rounded bg-amber-100 dark:bg-[#5C4033] text-primary dark:text-secondary flex justify-center hover:bg-amber-200 transition-colors">
@@ -343,6 +346,48 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Dashboard 3 Content (Data Review) -->
+            <div id="dashboard3" class="space-y-6 hidden">
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none relative z-10">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-primary"><i class="fas fa-exclamation-triangle me-2 text-amber-500"></i> طلبات مفرزة (في العمليات) غير موجودة عند المناديب</h3>
+                        <button onclick="exportTableToCSV('review-table-1', 'طلبات_مفرزة_غير_مسندة.csv')" class="bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700 transition-colors shadow"><i class="fas fa-file-excel me-1"></i> تحميل إكسيل</button>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar pb-4">
+                        <table id="review-table-1" class="w-full text-sm text-center">
+                            <thead class="bg-amber-100/50 dark:bg-[#5C4033] text-primary dark:text-secondary">
+                                <tr>
+                                    <th class="p-3 border border-gray-200 dark:border-[#5C4033]">رقم الطلب (Order)</th>
+                                    <th class="p-3 border border-gray-200 dark:border-[#5C4033]">رقم الطلبية (N_Order)</th>
+                                    <th class="p-3 border border-gray-200 dark:border-[#5C4033]">المدينة</th>
+                                    <th class="p-3 border border-gray-200 dark:border-[#5C4033]">الكمية</th>
+                                </tr>
+                            </thead>
+                            <tbody id="review-body-1"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass-card p-5 rounded-xl shadow-sm border border-gray-200 dark:border-none relative z-10">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-primary"><i class="fas fa-question-circle me-2 text-red-500"></i> طلبات مسندة للمناديب غير مفرزة في العمليات (أو غير موجودة)</h3>
+                        <button onclick="exportTableToCSV('review-table-2', 'طلبات_مناديب_مجهولة.csv')" class="bg-green-600 text-white px-3 py-1 rounded-md text-sm hover:bg-green-700 transition-colors shadow"><i class="fas fa-file-excel me-1"></i> تحميل إكسيل</button>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar pb-4">
+                        <table id="review-table-2" class="w-full text-sm text-center">
+                            <thead class="bg-amber-100/50 dark:bg-[#5C4033] text-primary dark:text-secondary">
+                                <tr>
+                                    <th class="p-3 border border-gray-200 dark:border-[#5C4033]">رقم الطلبية (N_Order)</th>
+                                    <th class="p-3 border border-gray-200 dark:border-[#5C4033]">اسم المندوب</th>
+                                    <th class="p-3 border border-gray-200 dark:border-[#5C4033]">الكمية المسجلة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="review-body-2"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -393,8 +438,14 @@
         window.switchTab = function(tabId) {
             document.getElementById('dashboard1').classList.add('hidden');
             document.getElementById('dashboard2').classList.add('hidden');
+            if (document.getElementById('dashboard3')) document.getElementById('dashboard3').classList.add('hidden');
+            
             document.getElementById(tabId).classList.remove('hidden');
-            document.getElementById('dashboard-title').innerText = tabId === 'dashboard1' ? 'نظرة عامة على العمليات' : 'لوحة أداء المناديب';
+            
+            let title = 'نظرة عامة على العمليات';
+            if(tabId === 'dashboard2') title = 'لوحة أداء المناديب';
+            if(tabId === 'dashboard3') title = 'مراجعة البيانات (المطابقة)';
+            document.getElementById('dashboard-title').innerText = title;
             
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.className = "w-full flex items-center p-3 rounded-lg hover:bg-amber-100 dark:hover:bg-[#5C4033] tab-btn transition-all text-gray-700 dark:text-gray-300";
@@ -403,6 +454,7 @@
             
             if(tabId === 'dashboard2') renderDashboard2();
             if(tabId === 'dashboard1') renderDash1Charts();
+            if(tabId === 'dashboard3') renderDashboard3();
         }
 
         async function init() {
@@ -755,22 +807,33 @@
             let stats = {};
             let tAssigned = 0, tInstalled = 0;
 
+            let installLookup = {};
             filteredInstallData.forEach(r => {
-                let name = r['name_of_installer'];
-                if(!name || name.trim() === '') return;
-                
-                if(!stats[name]) stats[name] = { total: 0, installed: 0, pending: 0 };
-                
-                const qty = r.parsedQty || 1;
-                stats[name].total += qty;
-                tAssigned += qty;
-                
                 const doneVal = String(r['done']).trim().toUpperCase();
-                if(doneVal === 'TRUE' || doneVal === '✓' || doneVal === '1') {
-                    stats[name].installed += qty;
-                    tInstalled += qty;
-                } else {
-                    stats[name].pending += qty;
+                const isInstalled = (doneVal === 'TRUE' || doneVal === '✓' || doneVal === '1');
+                let name = String(r['name_of_installer'] || '').trim();
+                
+                if (name && !installLookup[r.n_order]) {
+                    installLookup[r.n_order] = { name: name, isInstalled: isInstalled };
+                }
+            });
+
+            filteredOpsData.forEach(r => {
+                let inst = installLookup[r.n_order];
+                // MUST BE SORTED TO BE COUNTED AS ASSIGNED
+                if (inst && r.is_sorted) {
+                    let name = inst.name;
+                    if(!stats[name]) stats[name] = { total: 0, installed: 0, pending: 0 };
+                    
+                    stats[name].total += r.qty;
+                    tAssigned += r.qty;
+                    
+                    if(inst.isInstalled) {
+                        stats[name].installed += r.qty;
+                        tInstalled += r.qty;
+                    } else {
+                        stats[name].pending += r.qty;
+                    }
                 }
             });
 
@@ -923,7 +986,8 @@
 
                 // Process Installers mapping
                 let inst = installLookup[r.n_order];
-                if (inst) {
+                // MUST BE SORTED TO BE COUNTED AS ASSIGNED
+                if (inst && r.is_sorted) {
                     tAssigned += r.qty;
                     if (inst.isInstalled) tInstalled += r.qty;
 
@@ -1088,6 +1152,78 @@
                 btn.disabled = false;
                 alert('حدث خطأ أثناء إصدار التقرير');
             });
+        }
+
+        function renderDashboard3() {
+            // 1. In Ops (is_sorted=true) but NOT in Installers
+            let installNOrders = new Set(rawInstallData.map(r => String(r.n_order).trim()).filter(v => v));
+            
+            let missingInInstallers = {};
+            rawOpsData.forEach(r => {
+                let n = String(r.n_order).trim();
+                if (r.is_sorted && n && !installNOrders.has(n)) {
+                    if(!missingInInstallers[n]) {
+                        missingInInstallers[n] = { order: r.order, n_order: n, city: r.city, totalQty: 0 };
+                    }
+                    missingInInstallers[n].totalQty += r.qty;
+                }
+            });
+            
+            let tbody1 = Object.values(missingInInstallers).map(r => `
+                <tr class="border-b border-gray-100 dark:border-[#5C4033] hover:bg-gray-50 dark:hover:bg-[#4E342E]">
+                    <td class="p-3">${r.order}</td>
+                    <td class="p-3 font-bold">${r.n_order}</td>
+                    <td class="p-3">${r.city}</td>
+                    <td class="p-3 font-bold text-amber-600">${r.totalQty}</td>
+                </tr>
+            `).join('');
+            document.getElementById('review-body-1').innerHTML = tbody1 || `<tr><td colspan="4" class="p-4 text-gray-500 font-bold">لا توجد بيانات (جميع الطلبات المفرزة مسندة للمناديب)</td></tr>`;
+
+            // 2. In Installers but NOT sorted in Ops
+            let opsSortedNOrders = new Set(rawOpsData.filter(r => r.is_sorted).map(r => String(r.n_order).trim()).filter(v => v));
+            
+            let missingInOps = {};
+            rawInstallData.forEach(r => {
+                let n = String(r.n_order).trim();
+                if (n && !opsSortedNOrders.has(n)) {
+                    if(!missingInOps[n]) {
+                        missingInOps[n] = { n_order: n, installer: r.name_of_installer || 'غير محدد', totalQty: 0 };
+                    }
+                    missingInOps[n].totalQty += (r.parsedQty || 1);
+                }
+            });
+            
+            let tbody2 = Object.values(missingInOps).map(r => `
+                <tr class="border-b border-gray-100 dark:border-[#5C4033] hover:bg-gray-50 dark:hover:bg-[#4E342E]">
+                    <td class="p-3 font-bold">${r.n_order}</td>
+                    <td class="p-3">${r.installer}</td>
+                    <td class="p-3 text-red-600 font-bold">${r.totalQty}</td>
+                </tr>
+            `).join('');
+            document.getElementById('review-body-2').innerHTML = tbody2 || `<tr><td colspan="3" class="p-4 text-gray-500 font-bold">لا توجد بيانات (جميع طلبات المناديب مسجلة في العمليات)</td></tr>`;
+        }
+
+        window.exportTableToCSV = function(tableId, filename) {
+            let csv = [];
+            let rows = document.querySelectorAll('#' + tableId + ' tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                let row = [], cols = rows[i].querySelectorAll('td, th');
+                for (let j = 0; j < cols.length; j++) {
+                    let data = cols[j].innerText.replace(/"/g, '""');
+                    row.push('"' + data + '"');
+                }
+                csv.push(row.join(','));
+            }
+            
+            let csvFile = new Blob(['\uFEFF' + csv.join('\n')], {type: 'text/csv;charset=utf-8;'});
+            let downloadLink = document.createElement('a');
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
         }
 
         init();
