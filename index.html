@@ -129,6 +129,11 @@
                 <div>
                     <h2 class="text-3xl font-bold text-primary dark:text-secondary" id="dashboard-title">نظرة عامة على العمليات</h2>
                 </div>
+                <div>
+                    <button onclick="generatePDFReport()" class="bg-primary text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-opacity-90 transition-all flex items-center">
+                        <i class="fas fa-file-pdf me-2"></i> إصدار تقرير
+                    </button>
+                </div>
             </header>
 
             <!-- Dashboard 1 Content -->
@@ -346,6 +351,7 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <script>
         const CSV_1 = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTZjOt8YrMh-rJAq2dAPg12X8sEs3pTObkIuQK8x7fhrYzG9NtqcnMrCSSm1UXooT6p5Ur8HqGnAvaJ/pub?gid=0&single=true&output=csv';
@@ -858,6 +864,138 @@
                 pageLength: 5, 
                 language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' },
                 dom: 'rt<"flex flex-col md:flex-row justify-between items-center mt-4"ip>' 
+            });
+        }
+
+        function generatePDFReport() {
+            const btn = document.querySelector('button[onclick="generatePDFReport()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> جاري الإصدار...';
+            btn.disabled = true;
+
+            const tHangers = filteredOpsData.reduce((s, r) => s + r.qty, 0); 
+            const sortedHangers = filteredOpsData.filter(r => r.is_sorted).reduce((s, r) => s + r.qty, 0);
+            const delivHangers = filteredOpsData.filter(r => r.is_delivered).reduce((s, r) => s + r.qty, 0);
+            
+            let colors = {}; 
+            filteredOpsData.forEach(r => colors[r.color] = (colors[r.color]||0) + r.qty);
+            let colorRows = Object.keys(colors).map(c => `<tr><td style="padding:8px; border:1px solid #ddd;">${c}</td><td style="padding:8px; border:1px solid #ddd;">${colors[c]}</td></tr>`).join('');
+
+            let tAssigned = 0, tInstalled = 0;
+            let installerRows = '';
+            let stats = {};
+            filteredInstallData.forEach(r => {
+                let name = r['name_of_installer'];
+                if(!name || name.trim() === '') return;
+                if(!stats[name]) stats[name] = { total: 0, installed: 0, pending: 0 };
+                const qty = r.parsedQty || 1;
+                stats[name].total += qty;
+                tAssigned += qty;
+                const doneVal = String(r['done']).trim().toUpperCase();
+                if(doneVal === 'TRUE' || doneVal === '✓' || doneVal === '1') {
+                    stats[name].installed += qty;
+                    tInstalled += qty;
+                } else {
+                    stats[name].pending += qty;
+                }
+            });
+
+            Object.keys(stats).sort((a,b) => stats[b].installed - stats[a].installed).forEach(name => {
+                const s = stats[name];
+                installerRows += `<tr><td style="padding:8px; border:1px solid #ddd;">${name}</td><td style="padding:8px; border:1px solid #ddd;">${s.total}</td><td style="padding:8px; border:1px solid #ddd; color:green; font-weight:bold;">${s.installed}</td><td style="padding:8px; border:1px solid #ddd; color:orange; font-weight:bold;">${s.pending}</td></tr>`;
+            });
+
+            const date = new Date().toLocaleDateString('ar-EG');
+            const time = new Date().toLocaleTimeString('ar-EG');
+
+            const content = `
+                <div style="font-family: 'Cairo', sans-serif; padding: 30px; direction: rtl; text-align: right; color: #333; background: #fff;">
+                    <div style="text-align: center; border-bottom: 2px solid #8B4513; padding-bottom: 20px; margin-bottom: 20px;">
+                        <h1 style="color: #8B4513; margin: 0; font-size: 28px;">متجر منشر - تقرير العمليات الشامل</h1>
+                        <p style="margin: 5px 0 0 0; color: #666;">تاريخ الإصدار: ${date} ${time}</p>
+                    </div>
+
+                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">الإحصائيات العامة (العمليات)</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; width: 50%; font-weight: bold;">إجمالي الطلبات (الكمية)</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${tHangers}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي المفروز</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${sortedHangers}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي المسلم للمناديب</td>
+                            <td style="padding: 12px; border: 1px solid #ddd;">${delivHangers}</td>
+                        </tr>
+                    </table>
+
+                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">تفصيل الكميات والألوان</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center;">
+                        <thead>
+                            <tr style="background-color: #8B4513; color: white;">
+                                <th style="padding: 10px; border: 1px solid #ddd;">اللون / النوع</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">الكمية المطلوبة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${colorRows}
+                        </tbody>
+                    </table>
+
+                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">إحصائيات المناديب والتركيب</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; width: 50%; font-weight: bold;">إجمالي المناشر المسندة للمناديب</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${tAssigned}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #ddd; background: #f9f9f9; font-weight: bold;">إجمالي ما تم تركيبه</td>
+                            <td style="padding: 12px; border: 1px solid #ddd; color: green; font-weight: bold;">${tInstalled}</td>
+                        </tr>
+                    </table>
+
+                    <h2 style="color: #8B4513; font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">أداء المناديب التفصيلي</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; text-align: center;">
+                        <thead>
+                            <tr style="background-color: #8B4513; color: white;">
+                                <th style="padding: 10px; border: 1px solid #ddd;">اسم المندوب</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المسند</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">المركب</th>
+                                <th style="padding: 10px; border: 1px solid #ddd;">الانتظار</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${installerRows}
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #999;">
+                        تم إنشاء هذا التقرير آلياً من نظام منشر
+                    </div>
+                </div>
+            `;
+
+            const opt = {
+                margin:       0.3,
+                filename:     'تقرير_منشر_' + new Date().getTime() + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+
+            const element = document.createElement('div');
+            element.innerHTML = content;
+            
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error(err);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                alert('حدث خطأ أثناء إصدار التقرير');
             });
         }
 
